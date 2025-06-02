@@ -108,3 +108,4 @@ const MessageInputArea = ({ onSendMessage, onSendWhisper, disabled, canWhisper }
 };
 
 export default MessageInputArea;
+

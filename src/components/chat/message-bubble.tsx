@@ -91,3 +91,4 @@ const MessageBubble = ({ message, senderUser, assignedAgentId }: MessageBubblePr
 };
 
 export default MessageBubble;
+
