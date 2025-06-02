@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Queue } from '@/types';
+import type { Queue, ChatStatusColumn, KanbanColumnConfig } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -26,6 +26,7 @@ const queueFormSchema = z.object({
   name: z.string().min(3, { message: "O nome da fila deve ter pelo menos 3 caracteres." }),
   description: z.string().optional(),
   isActive: z.boolean().default(true),
+  kanbanColumnNames: z.string().optional().describe("Nomes das colunas do Kanban, um por linha. As três primeiras serão mapeadas para Aguardando, Em Progresso, Transferido."),
 });
 
 export type QueueFormData = z.infer<typeof queueFormSchema>;
@@ -37,13 +38,16 @@ type QueueFormDialogProps = {
   initialData?: Queue | null;
 };
 
+const defaultKanbanColumnTitles = ['Aguardando', 'Em Progresso', 'Transferido'];
+
 const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueFormDialogProps) => {
   const form = useForm<QueueFormData>({
     resolver: zodResolver(queueFormSchema),
-    defaultValues: initialData || {
+    defaultValues: {
       name: '',
       description: '',
       isActive: true,
+      kanbanColumnNames: defaultKanbanColumnTitles.join('\n'),
       id: undefined,
     },
   });
@@ -51,12 +55,19 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
-        form.reset(initialData);
+        const columnNames = initialData.kanbanColumns && initialData.kanbanColumns.length > 0
+          ? initialData.kanbanColumns.map(col => col.title).join('\n')
+          : defaultKanbanColumnTitles.join('\n');
+        form.reset({
+          ...initialData,
+          kanbanColumnNames: columnNames,
+        });
       } else {
         form.reset({
           name: '',
           description: '',
           isActive: true,
+          kanbanColumnNames: defaultKanbanColumnTitles.join('\n'),
           id: undefined,
         });
       }
@@ -74,11 +85,11 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
         <DialogHeader>
           <DialogTitle>{initialData ? 'Editar Fila' : 'Adicionar Nova Fila'}</DialogTitle>
           <DialogDescription>
-            {initialData ? 'Atualize os detalhes da fila.' : 'Preencha os detalhes para criar uma nova fila.'}
+            {initialData ? 'Atualize os detalhes e colunas do Kanban da fila.' : 'Preencha os detalhes para criar uma nova fila e configurar suas colunas Kanban.'}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
+          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
             <FormField
               control={form.control}
               name="name"
@@ -105,6 +116,26 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="kanbanColumnNames"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nomes das Colunas do Kanban</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Aguardando\nEm Progresso\nTransferido"
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Digite um nome de coluna por linha. As três primeiras serão mapeadas para os status padrão de chat.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -145,3 +176,5 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
 };
 
 export default QueueFormDialog;
+
+    

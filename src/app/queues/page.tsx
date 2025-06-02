@@ -7,15 +7,21 @@ import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/com
 import { Button } from '@/components/ui/button';
 import { Lock, ArrowRight, Users, Bot, PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { MOCK_QUEUES, MOCK_CHATS, MOCK_CURRENT_USER, MOCK_ROLES, MOCK_USERS } from '@/lib/mock-data';
-import type { PermissionId, Queue } from '@/types';
+import type { PermissionId, Queue, ChatStatusColumn, KanbanColumnConfig } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import QueueFormDialog, { type QueueFormData } from '@/components/admin/queue-form-dialog'; // Ajustado o caminho
+import QueueFormDialog, { type QueueFormData } from '@/components/admin/queue-form-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+const defaultMappedStatuses: ChatStatusColumn[][] = [
+  ['WAITING'],
+  ['IN_PROGRESS'],
+  ['TRANSFERRED'],
+];
 
 export default function QueuesListPage() {
   const [queues, setQueues] = useState<Queue[]>(MOCK_QUEUES);
@@ -36,8 +42,6 @@ export default function QueuesListPage() {
 
 
   useEffect(() => {
-    // Em uma aplicação real, você buscaria as filas aqui.
-    // Por enquanto, apenas garantimos que o estado reflita MOCK_QUEUES inicialmente.
     setQueues(MOCK_QUEUES);
   }, []);
 
@@ -55,7 +59,7 @@ export default function QueuesListPage() {
     );
   }
 
-  const activeQueues = queues.filter(q => q.isActive); // Mostra apenas filas ativas na listagem principal.
+  const activeQueues = queues.filter(q => q.isActive); 
 
   const getQueueStats = (queueId: string) => {
     const chatsInQueue = MOCK_CHATS.filter(chat => chat.queueId === queueId && (chat.status === 'IN_PROGRESS' || chat.status === 'WAITING' || chat.status === 'TRANSFERRED'));
@@ -82,7 +86,6 @@ export default function QueuesListPage() {
     const queueToDelete = queues.find(q => q.id === queueId);
     if (confirm(`Tem certeza que deseja excluir a fila "${queueToDelete?.name}"?`)) {
       setQueues(prevQueues => prevQueues.filter(q => q.id !== queueId));
-      // Em uma app real: MOCK_QUEUES = MOCK_QUEUES.filter(q => q.id !== queueId);
       toast({
         title: "Fila Excluída",
         description: `A fila "${queueToDelete?.name}" foi excluída.`,
@@ -90,23 +93,41 @@ export default function QueuesListPage() {
     }
   };
 
+  const processKanbanColumnNames = (namesString?: string): KanbanColumnConfig[] => {
+    if (!namesString || namesString.trim() === '') {
+      // Retorna configuração padrão se nada for fornecido
+      return [
+        { id: `col_default_1_${Date.now()}`, title: 'Aguardando', mappedStatuses: ['WAITING'] },
+        { id: `col_default_2_${Date.now()}`, title: 'Em Progresso', mappedStatuses: ['IN_PROGRESS'] },
+        { id: `col_default_3_${Date.now()}`, title: 'Transferido', mappedStatuses: ['TRANSFERRED'] },
+      ];
+    }
+    const namesArray = namesString.split('\n').map(name => name.trim()).filter(name => name !== '');
+    return namesArray.map((name, index) => ({
+      id: `col_${index}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      title: name,
+      mappedStatuses: index < defaultMappedStatuses.length ? defaultMappedStatuses[index] : [],
+    }));
+  };
+
   const handleFormSubmit = (data: QueueFormData) => {
+    const newKanbanColumns = processKanbanColumnNames(data.kanbanColumnNames);
+
     if (editingQueue) {
-      // Update
       const updatedQueues = queues.map(q => 
-        q.id === editingQueue.id ? { ...q, ...data } : q
+        q.id === editingQueue.id ? { ...q, ...data, kanbanColumns: newKanbanColumns } : q
       );
       setQueues(updatedQueues);
-      // Em uma app real: Object.assign(MOCK_QUEUES.find(q => q.id === editingQueue.id), data);
       toast({ title: "Fila Atualizada", description: `A fila "${data.name}" foi atualizada.` });
     } else {
-      // Create
       const newQueue: Queue = {
-        ...data,
         id: `queue_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        name: data.name,
+        description: data.description || '',
+        isActive: data.isActive,
+        kanbanColumns: newKanbanColumns,
       };
       setQueues(prevQueues => [newQueue, ...prevQueues]);
-      // Em uma app real: MOCK_QUEUES.push(newQueue);
       toast({ title: "Fila Adicionada", description: `A fila "${data.name}" foi adicionada.` });
     }
     setIsFormOpen(false);
@@ -199,3 +220,5 @@ export default function QueuesListPage() {
     </>
   );
 }
+
+    

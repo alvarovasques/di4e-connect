@@ -26,6 +26,13 @@ export type Message = {
   sentimentScore?: number; // Added for displaying sentiment per message
 };
 
+export type ChatStatus = 'WAITING' | 'IN_PROGRESS' | 'TRANSFERRED' | 'RESOLVED' | 'CLOSED';
+export type ChatPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+// Definindo ChatStatusColumn para ser usado em kanbanColumns
+export type ChatStatusColumn = 'WAITING' | 'IN_PROGRESS' | 'TRANSFERRED';
+
+
 export type Chat = {
   id: string;
   whatsappId: string;
@@ -33,8 +40,8 @@ export type Chat = {
   customerName: string;
   queueId: string;
   assignedTo: string | null; // User.id
-  status: 'WAITING' | 'IN_PROGRESS' | 'TRANSFERRED' | 'RESOLVED' | 'CLOSED';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status: ChatStatus;
+  priority: ChatPriority;
   createdAt: Date;
   updatedAt: Date;
   lastActivity: Date;
@@ -48,11 +55,18 @@ export type Chat = {
   messages: Message[]; // Embed messages for simpler client-side handling in this example
 };
 
+export type KanbanColumnConfig = {
+  id: string;
+  title: string;
+  mappedStatuses: ChatStatusColumn[];
+};
+
 export type Queue = {
   id: string;
   name: string;
   description: string;
   isActive: boolean;
+  kanbanColumns?: KanbanColumnConfig[]; // Colunas Kanban configuráveis
 };
 
 // Tipos para a Base de Conhecimento (KB)
@@ -189,3 +203,6 @@ export type AiModel = {
   provider: string;
   description?: string;
 };
+
+
+    

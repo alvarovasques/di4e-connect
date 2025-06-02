@@ -3,23 +3,22 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card"; // CardContent, CardDescription, CardHeader, CardTitle
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Lock, Eye, MessageSquareQuote, CornerRightUp, ArrowLeft, Users, Bot } from 'lucide-react';
 import { MOCK_QUEUES, MOCK_CHATS, MOCK_CURRENT_USER, MOCK_ROLES, MOCK_USERS } from '@/lib/mock-data';
-import type { Queue, Chat, PermissionId, User as UserType } from '@/types';
+import type { Queue, Chat, PermissionId, User as UserType, ChatStatusColumn, KanbanColumnConfig } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-type ChatStatusColumn = 'WAITING' | 'IN_PROGRESS' | 'TRANSFERRED';
 
-const KANBAN_COLUMNS: { title: string; status: ChatStatusColumn[] }[] = [
-  { title: 'Aguardando', status: ['WAITING'] },
-  { title: 'Em Progresso', status: ['IN_PROGRESS'] },
-  { title: 'Transferido', status: ['TRANSFERRED'] },
+const DEFAULT_KANBAN_COLUMNS: KanbanColumnConfig[] = [
+  { id: 'default_waiting', title: 'Aguardando', mappedStatuses: ['WAITING'] },
+  { id: 'default_progress', title: 'Em Progresso', mappedStatuses: ['IN_PROGRESS'] },
+  { id: 'default_transferred', title: 'Transferido', mappedStatuses: ['TRANSFERRED'] },
 ];
 
 
@@ -91,8 +90,7 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
   const { toast } = useToast();
   const { queueId } = params;
 
-  // Simulating fetching queues and finding the current one. In a real app, this would be dynamic.
-  const [allQueues, setAllQueues] = useState<Queue[]>(MOCK_QUEUES);
+  const [allQueues, setAllQueues] = useState<Queue[]>(MOCK_QUEUES); // Em app real, seria buscado ou viria de contexto global
 
   const currentUserRole = MOCK_ROLES.find(role => role.id === MOCK_CURRENT_USER.roleId);
   const currentUserPermissions = useMemo(() => new Set(currentUserRole?.permissions || []), [currentUserRole]);
@@ -103,8 +101,18 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
 
   const currentQueue = useMemo(() => allQueues.find(q => q.id === queueId), [queueId, allQueues]);
 
+  const kanbanColumnsToRender = useMemo(() => {
+    if (currentQueue?.kanbanColumns && currentQueue.kanbanColumns.length > 0) {
+      return currentQueue.kanbanColumns;
+    }
+    return DEFAULT_KANBAN_COLUMNS;
+  }, [currentQueue]);
+
+
   const chatsForCurrentQueue = useMemo(() => {
-    return MOCK_CHATS.filter(chat => chat.queueId === queueId && (chat.status === 'IN_PROGRESS' || chat.status === 'WAITING' || chat.status === 'TRANSFERRED'));
+    // Inclui todos os status que podem estar em colunas visíveis do Kanban
+    const relevantStatuses: ChatStatusColumn[] = ['WAITING', 'IN_PROGRESS', 'TRANSFERRED'];
+    return MOCK_CHATS.filter(chat => chat.queueId === queueId && relevantStatuses.includes(chat.status as ChatStatusColumn));
   }, [queueId]);
 
   const humanAgentsInQueue = useMemo(() => MOCK_USERS.filter(user => user.userType === 'AGENT_HUMAN' && user.assignedQueueIds?.includes(queueId)), [queueId]);
@@ -156,17 +164,17 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
         </div>
       </div>
       
-      {chatsForCurrentQueue.length === 0 && !KANBAN_COLUMNS.some(col => chatsForCurrentQueue.filter(c => col.status.includes(c.status as ChatStatusColumn)).length > 0) ? (
+      {chatsForCurrentQueue.length === 0 && !kanbanColumnsToRender.some(col => chatsForCurrentQueue.filter(c => col.mappedStatuses.includes(c.status as ChatStatusColumn)).length > 0) ? (
          <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted-foreground/30 rounded-lg flex-grow">
             <p className="text-muted-foreground">Nenhum chat ativo nesta fila para exibir no Kanban.</p>
           </div>
       ) : (
         <ScrollArea className="flex-grow whitespace-nowrap rounded-md border p-4 bg-muted/20">
           <div className="flex gap-4 pb-4 h-full">
-            {KANBAN_COLUMNS.map(column => {
-              const chatsInColumn = chatsForCurrentQueue.filter(chat => column.status.includes(chat.status as ChatStatusColumn));
+            {kanbanColumnsToRender.map(column => {
+              const chatsInColumn = chatsForCurrentQueue.filter(chat => column.mappedStatuses.includes(chat.status as ChatStatusColumn));
               return (
-                <div key={column.title} className="w-80 min-w-[300px] max-w-sm flex-shrink-0 bg-background rounded-lg shadow-md p-3 flex flex-col">
+                <div key={column.id} className="w-80 min-w-[300px] max-w-sm flex-shrink-0 bg-background rounded-lg shadow-md p-3 flex flex-col">
                   <h3 className="font-semibold text-foreground mb-3 px-1 text-lg sticky top-0 bg-background py-2 z-10">{column.title} ({chatsInColumn.length})</h3>
                   <ScrollArea className="flex-grow h-[calc(100vh-22rem)] pr-2"> {/* Ajustar altura conforme necessidade */}
                     {chatsInColumn.length === 0 ? (
@@ -187,3 +195,5 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
     </div>
   );
 }
+
+    

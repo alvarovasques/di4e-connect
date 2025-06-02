@@ -1,5 +1,5 @@
 
-import type { User, Chat, Message, Queue, KnowledgeBaseArticle, KBItem, WhisperNote, Metric, PerformanceData, AiInsight, Role, AiModel, PermissionId, KBModelType } from '@/types';
+import type { User, Chat, Message, Queue, KnowledgeBaseArticle, KBItem, WhisperNote, Metric, PerformanceData, AiInsight, Role, AiModel, PermissionId, KBModelType, ChatStatusColumn, KanbanColumnConfig } from '@/types';
 import { ALL_PERMISSIONS } from '@/types'; 
 
 export const MOCK_USERS: User[] = [
@@ -44,6 +44,12 @@ const generateMessages = (chatId: string, count: number): Message[] => {
   }
   return messages;
 };
+
+const DEFAULT_KANBAN_COLUMNS: KanbanColumnConfig[] = [
+  { id: 'col_waiting_default', title: 'Aguardando', mappedStatuses: ['WAITING'] },
+  { id: 'col_progress_default', title: 'Em Progresso', mappedStatuses: ['IN_PROGRESS'] },
+  { id: 'col_transferred_default', title: 'Transferido', mappedStatuses: ['TRANSFERRED'] }
+];
 
 export const MOCK_CHATS: Chat[] = [
   {
@@ -139,9 +145,9 @@ export const MOCK_CHATS: Chat[] = [
 ];
 
 export const MOCK_QUEUES: Queue[] = [
-  { id: 'queue_1', name: 'Suporte de Vendas', description: 'Lida com consultas de vendas', isActive: true },
-  { id: 'queue_2', name: 'Suporte Técnico', description: 'Lida com problemas técnicos', isActive: true },
-  { id: 'queue_3', name: 'Faturamento', description: 'Lida com questões de faturamento', isActive: true }, // Ativada para aparecer no Kanban
+  { id: 'queue_1', name: 'Suporte de Vendas', description: 'Lida com consultas de vendas', isActive: true, kanbanColumns: DEFAULT_KANBAN_COLUMNS },
+  { id: 'queue_2', name: 'Suporte Técnico', description: 'Lida com problemas técnicos', isActive: true, kanbanColumns: DEFAULT_KANBAN_COLUMNS },
+  { id: 'queue_3', name: 'Faturamento', description: 'Lida com questões de faturamento', isActive: true, kanbanColumns: DEFAULT_KANBAN_COLUMNS }, 
 ];
 
 
@@ -339,5 +345,7 @@ export const MOCK_AI_MODELS: AiModel[] = [
     description: 'Modelo experimental da Google AI com capacidade de geração de imagem.'
   },
 ];
+
+    
 
     
