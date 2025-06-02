@@ -2,18 +2,18 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { Chat, Message, User, KnowledgeBaseArticle, WhisperNote, Queue, KBItem } from '@/types';
-import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ITEMS, MOCK_WHISPER_NOTES, MOCK_CURRENT_USER } from '@/lib/mock-data';
+import type { Chat, Message, User, KnowledgeBaseArticle, Queue, KBItem, MessageType } from '@/types';
+import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ITEMS, MOCK_CURRENT_USER } from '@/lib/mock-data';
 import MessageBubble from './message-bubble';
 import MessageInputArea from './message-input-area';
-import WhisperNoteInput from './whisper-note-input';
+// WhisperNoteInput is removed as input is now in MessageInputArea
 import KnowledgeBaseSuggestionItem from './knowledge-base-suggestion-item';
 import SentimentDisplay from './sentiment-display';
 import ChatTransferDialog from './chat-transfer-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, BookOpen, Bot, CheckCircle, CornerRightUp, Info, Loader2, MessageSquareQuote, MoreVertical, Send, ShieldCheck, Sparkles, UsersIcon, SlidersHorizontal } from 'lucide-react';
+import { AlertTriangle, BookOpen, Bot, CheckCircle, CornerRightUp, Info, Loader2, MessageSquareQuote, MoreVertical, Send, ShieldCheck, Sparkles, UsersIcon, SlidersHorizontal, Ear } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,7 +54,8 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
   const [chat, setChat] = useState<Chat | null>(initialChat);
   const [messages, setMessages] = useState<Message[]>(initialChat?.messages || []);
-  const [whisperNotes, setWhisperNotes] = useState<WhisperNote[]>(MOCK_WHISPER_NOTES.filter(note => note.chatId === initialChat?.id));
+  // Removed whisperNotes state as whispers are now inline with messages
+  // const [whisperNotes, setWhisperNotes] = useState<WhisperNote[]>(MOCK_WHISPER_NOTES.filter(note => note.chatId === initialChat?.id));
   const [suggestedArticles, setSuggestedArticles] = useState<KnowledgeBaseArticle[]>([]);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -62,27 +63,28 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
   const [supervisorEvaluationScore, setSupervisorEvaluationScore] = useState(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
   const [supervisorFeedback, setSupervisorFeedback] = useState('');
-  const [activeTab, setActiveTab] = useState(initialAction === 'whisper' ? 'notes' : 'details');
+  const [activeTab, setActiveTab] = useState(initialAction === 'whisper' ? 'notes' : 'details'); // 'notes' tab might be repurposed or removed
 
   const isSupervisor = MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'ADMIN';
+  const canCurrentUserWhisper = isSupervisor || MOCK_CURRENT_USER.id === chat?.assignedTo;
 
 
   useEffect(() => {
     setChat(initialChat);
     setMessages(initialChat?.messages || []);
-    setWhisperNotes(MOCK_WHISPER_NOTES.filter(note => note.chatId === initialChat?.id));
+    // Removed setWhisperNotes
     if (initialChat) {
       fetchAiSuggestions(initialChat.messages);
     } else {
       setSuggestedArticles([]);
     }
-    // Reset supervisor eval if chat changes
     setSupervisorEvaluationScore(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
     setSupervisorFeedback('');
-    // Set active tab based on query param or default
-    setActiveTab(initialAction === 'whisper' && initialChat?.id === searchParams.get('chatId') ? 'notes' : 'details');
+    // The 'notes' tab functionality for whispers is removed, so 'whisper' action might not make sense for tab selection.
+    // Defaulting to 'details' or a relevant tab based on role.
+    setActiveTab(isSupervisor ? 'ia_eval' : 'details');
 
-  }, [initialChat, initialAction, searchParams]);
+  }, [initialChat, isSupervisor]); // Removed initialAction, searchParams as direct deps for activeTab here
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -97,7 +99,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     if (!chat || currentMessages.length === 0) return;
     setIsLoadingAi(true);
     try {
-      const chatContent = currentMessages.map(m => `${m.sender}: ${m.content}`).join('\n');
+      const chatContent = currentMessages.filter(m => m.type !== 'whisper').map(m => `${m.sender}: ${m.content}`).join('\n');
       
       const textBasedKbItemsForGenkit = MOCK_KB_ITEMS.filter(item =>
         item.type === 'file' &&
@@ -125,7 +127,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
         };
       }).slice(0, 3)); 
 
-      const lastCustomerMessage = [...currentMessages].reverse().find(m => m.sender === 'customer');
+      const lastCustomerMessage = [...currentMessages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
       if (lastCustomerMessage) {
         const sentimentResult = await analyzeSentiment({ text: lastCustomerMessage.content });
         setMessages(prevMessages => prevMessages.map(m => 
@@ -143,10 +145,10 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     setIsLoadingAi(false);
   };
   
-  const handleSendMessage = (content: string, type: 'text') => {
+  const handleSendMessage = (content: string, type: MessageType = 'text') => {
     if (!chat) return;
     const newMessage: Message = {
-      id: `msg_${chat.id}_${messages.length + 1}`,
+      id: `msg_${chat.id}_${Date.now()}`,
       chatId: chat.id,
       content,
       type,
@@ -161,19 +163,24 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     fetchAiSuggestions(updatedMessages); 
   };
 
-  const handleSendWhisperNote = (note: string) => {
-    if (!chat) return;
-    const newWhisperNote: WhisperNote = {
-      id: `whisper_${whisperNotes.length + 1}`,
+  const handleSendWhisper = (content: string) => {
+    if (!chat || !canCurrentUserWhisper) return;
+    const newWhisperMessage: Message = {
+      id: `whisper_${chat.id}_${Date.now()}`,
       chatId: chat.id,
-      userId: MOCK_CURRENT_USER.id,
-      userName: MOCK_CURRENT_USER.name,
-      note,
+      content,
+      type: 'whisper',
+      sender: MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'ADMIN' ? 'supervisor' : 'agent',
+      senderId: MOCK_CURRENT_USER.id,
+      senderName: `${MOCK_CURRENT_USER.name}`, // MessageBubble will add context like "(Sussurro)"
       timestamp: new Date(),
+      isFromCustomer: false,
+      targetAgentId: chat.assignedTo || undefined, // Whisper is for the assigned agent
     };
-    setWhisperNotes([...whisperNotes, newWhisperNote]);
-    toast({ title: "Nota interna enviada", description: "Sua nota interna foi adicionada." });
+    setMessages(prevMessages => [...prevMessages, newWhisperMessage]);
+    toast({ title: "Sussurro enviado", description: "Sua nota interna foi enviada para o agente." });
   };
+
 
   const handleTransferChatSubmit = (targetType: 'queue' | 'agent', targetId: string) => {
     const targetTypePt = targetType === 'queue' ? 'fila' : 'agente';
@@ -181,7 +188,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       title: "Transferência de Chat Iniciada (Simulação)",
       description: `Chat transferido para ${targetTypePt} ID: ${targetId}.`,
     });
-    // Lógica de atualização do chat (ex: status, assignedTo) aqui em um app real
     if(chat) setChat(prev => prev ? {...prev, status: 'TRANSFERRED', assignedTo: targetType === 'agent' ? targetId : null} : null);
   };
   
@@ -191,7 +197,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       title: "Chat Assumido (Simulação)",
       description: `Supervisor ${MOCK_CURRENT_USER.name} assumiu o chat ID: ${chat.id}.`,
     });
-    // Lógica de atualização do chat (ex: assignedTo = MOCK_CURRENT_USER.id) aqui
      if(chat) setChat(prev => prev ? {...prev, assignedTo: MOCK_CURRENT_USER.id, status: 'IN_PROGRESS'} : null);
   };
 
@@ -260,7 +265,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                     agents={MOCK_USERS.filter(u => u.userType === "AGENT_HUMAN")} 
                     onTransfer={handleTransferChatSubmit} 
                 />
-                <Button variant="outline" size="sm" onClick={handleAssumeChat} title="Assumir Chat">
+                <Button variant="outline" size="sm" onClick={handleAssumeChat} title="Assumir Chat" disabled={MOCK_CURRENT_USER.id === chat.assignedTo}>
                     <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir</span>
                 </Button>
                  <Button variant="outline" size="sm" onClick={handleResolveChat} title="Resolver Chat" className="text-green-600 hover:text-green-700 border-green-600 hover:border-green-700">
@@ -295,13 +300,23 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
         <ScrollArea className="flex-1 p-3 md:p-4" ref={scrollAreaRef}>
           <div className="space-y-4">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} senderUser={MOCK_USERS.find(u => u.id === msg.senderId)} />
+              <MessageBubble 
+                key={msg.id} 
+                message={msg} 
+                senderUser={MOCK_USERS.find(u => u.id === msg.senderId)}
+                assignedAgentId={chat.assignedTo}
+              />
             ))}
             {isLoadingAi && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin text-primary"/></div>}
           </div>
         </ScrollArea>
 
-        <MessageInputArea onSendMessage={handleSendMessage} disabled={chat.status === 'RESOLVED' || chat.status === 'CLOSED'} />
+        <MessageInputArea 
+            onSendMessage={handleSendMessage} 
+            onSendWhisper={handleSendWhisper}
+            disabled={chat.status === 'RESOLVED' || chat.status === 'CLOSED'}
+            canWhisper={canCurrentUserWhisper}
+        />
       </div>
       
       {(MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'AGENT_HUMAN') && (
@@ -309,7 +324,8 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
             <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
               <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
-              <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
+              {/* The "Notas" tab is now less prominent for whispers, could be for general notes or removed */}
+              <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Hist. Notas</TabsTrigger>
               {isSupervisor ? (
                 <TabsTrigger value="ia_eval" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Análise IA</TabsTrigger>
               ) : (
@@ -343,19 +359,11 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="notes" className="flex-1 flex flex-col overflow-hidden">
-              <ScrollArea className="flex-1 p-4 space-y-3">
-                {whisperNotes.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma nota interna ainda.</p>}
-                {whisperNotes.map(note => (
-                  <div key={note.id} className="text-xs p-2 rounded bg-yellow-100 border border-yellow-200 text-yellow-800">
-                    <p className="font-semibold">{note.userName} ({format(new Date(note.timestamp), 'Pp', { locale: ptBR })})</p> {/* Formato mais curto */}
-                    <p>{note.note}</p>
-                  </div>
-                ))}
-              </ScrollArea>
-              {(isSupervisor || MOCK_CURRENT_USER.id === chat.assignedTo) && ( // Supervisor ou agente atribuído pode sussurrar
-                <WhisperNoteInput onSendWhisperNote={handleSendWhisperNote} />
-              )}
+            <TabsContent value="notes" className="flex-1 flex flex-col overflow-hidden p-4">
+              {/* Display historical non-inline notes here if any. For now, it's empty as whispers are inline. */}
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Notas internas (sussurros) são exibidas inline na conversa. Esta área pode ser usada para outras anotações.
+              </p>
             </TabsContent>
             
             {isSupervisor && (

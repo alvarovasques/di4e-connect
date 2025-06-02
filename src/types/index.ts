@@ -12,18 +12,21 @@ export type User = {
   assignedQueueIds?: string[]; // Para simular filas que o usuário/agente atende para KB
 };
 
+export type MessageType = 'text' | 'image' | 'audio' | 'document' | 'whisper' | 'system';
+
 export type Message = {
   id: string;
   chatId: string;
   content: string;
-  type: 'text' | 'image' | 'audio' | 'document';
-  sender: 'customer' | 'agent' | 'ai' | 'system';
-  senderId?: string; // Corresponds to User.id for agent/ai/system
+  type: MessageType;
+  sender: 'customer' | 'agent' | 'ai' | 'system' | 'supervisor'; // Added 'supervisor' for clarity on whispers
+  senderId?: string; // Corresponds to User.id for agent/ai/system/supervisor
   senderName?: string; // Display name for sender
   timestamp: Date;
-  isFromCustomer: boolean;
+  isFromCustomer: boolean; // Can be derived from sender type, but kept for explicitness
   whatsappMessageId?: string;
   sentimentScore?: number; // Added for displaying sentiment per message
+  targetAgentId?: string; // For whisper messages, to know who it's intended for
 };
 
 export type ChatStatus = 'WAITING' | 'IN_PROGRESS' | 'TRANSFERRED' | 'RESOLVED' | 'CLOSED';
@@ -119,7 +122,7 @@ export type KnowledgeBaseArticle = {
 };
 
 
-export type WhisperNote = {
+export type WhisperNote = { // This type might become obsolete or be merged with Message if whispers are fully inline
   id: string;
   chatId: string;
   userId: string; // Agent who wrote the note
@@ -184,7 +187,7 @@ export const ALL_PERMISSIONS = [
   { id: 'kb_manage_general', label: 'KB: Gerenciar Documentos Gerais' },
   { id: 'kb_create_item', label: 'KB: Criar Novos Itens/Pastas' }, // Permissão para o botão "Novo Item"
 
-  { id: 'supervisor_whisper_chat', label: 'Sussurrar em Chats (Supervisor)' },
+  { id: 'supervisor_whisper_chat', label: 'Sussurrar em Chats (Supervisor)' }, // This permission can gate the whisper button
   { id: 'supervisor_view_all_chats', label: 'Visualizar Todos os Chats (Supervisor)' },
 ] as const;
 
@@ -204,6 +207,3 @@ export type AiModel = {
   provider: string;
   description?: string;
 };
-
-
-    
