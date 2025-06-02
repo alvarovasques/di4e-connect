@@ -12,7 +12,7 @@ import { MOCK_QUEUES, MOCK_CHATS, MOCK_CURRENT_USER, MOCK_ROLES } from '@/lib/mo
 import type { Queue, Chat, PermissionId } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils'; // Added import for cn
+import { cn } from '@/lib/utils';
 
 const QueueCard = ({ queue, chatsInQueue }: { queue: Queue; chatsInQueue: Chat[] }) => {
   const router = useRouter();
@@ -64,7 +64,7 @@ const QueueCard = ({ queue, chatsInQueue }: { queue: Queue; chatsInQueue: Chat[]
                 <Badge 
                   variant={chat.status === 'IN_PROGRESS' ? 'default' : chat.status === 'WAITING' ? 'secondary' : 'outline'}
                   className={cn(
-                    chat.priority === 'HIGH' && 'border-destructive text-destructive',
+                    chat.priority === 'HIGH' && 'border-destructive text-accent', // Alterado aqui
                     chat.priority === 'URGENT' && 'bg-destructive text-destructive-foreground'
                   )}
                 >
@@ -144,5 +144,3 @@ export default function QueuesPage() {
     </div>
   );
 }
-
-    
