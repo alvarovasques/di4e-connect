@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, MessageCircle, Users, Settings, LifeBuoy, Bot, BookOpen, Share2, BarChart3, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, Users, Settings, LifeBuoy, Bot, BookOpen, Share2, BarChart3, ShieldCheck, Sparkles } from 'lucide-react'; // Adicionado Sparkles
 import type { PermissionId } from '@/types';
 
 export type NavItem = {
@@ -24,6 +24,13 @@ export const NAV_ITEMS: NavItem[] = [
     requiredPermission: 'access_kb_module'
   },
   {
+    path: '/resources/oracle', // Novo caminho para o Oráculo
+    label: 'Oráculo IA',
+    icon: Sparkles, // Ícone para o Oráculo
+    section: 'Recursos',
+    requiredPermission: 'access_kb_module' // Usando a mesma permissão da KB por enquanto
+  },
+  {
     path: '/reports',
     label: 'Relatórios',
     icon: BarChart3,
@@ -35,11 +42,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Admin',
     icon: Settings,
     section: 'Configuração',
-    requiredPermission: 'access_admin_section', // Permissão genérica para acessar a seção Admin
+    requiredPermission: 'access_admin_section', 
     subItems: [
       { path: '/admin/users', label: 'Usuários', icon: Users, requiredPermission: 'manage_users' },
-      { path: '/admin/roles', label: 'Cargos e Permissões', icon: ShieldCheck, requiredPermission: 'manage_roles' }, // Ícone atualizado
-      { path: '/admin/ai-settings', label: 'Agentes IA', icon: Bot, requiredPermission: 'manage_ai_agents' }, // Assumindo que gerenciar agentes IA é a permissão correta
+      { path: '/admin/roles', label: 'Cargos e Permissões', icon: ShieldCheck, requiredPermission: 'manage_roles' }, 
+      { path: '/admin/ai-settings', label: 'Agentes IA', icon: Bot, requiredPermission: 'manage_ai_agents' }, 
     ]
   },
   { path: '/support', label: 'Suporte', icon: LifeBuoy, section: 'Ajuda', requiredPermission: 'access_support_page' },
