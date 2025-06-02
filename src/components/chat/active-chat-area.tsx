@@ -13,7 +13,7 @@ import ChatTransferDialog from './chat-transfer-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, BookOpen, Bot, CheckCircle, CornerRightUp, Info, Loader2, MessageSquareQuote, MoreVertical, Phone, Send, ShieldCheck, Sparkles, Video, UsersIcon, SlidersHorizontal } from 'lucide-react';
+import { AlertTriangle, BookOpen, Bot, CheckCircle, CornerRightUp, Info, Loader2, MessageSquareQuote, MoreVertical, Send, ShieldCheck, Sparkles, UsersIcon, SlidersHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -268,8 +268,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                 </Button>
               </>
             )}
-            <Button variant="ghost" size="icon" className="hidden sm:inline-flex"><Phone className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" className="hidden sm:inline-flex"><Video className="h-5 w-5" /></Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
