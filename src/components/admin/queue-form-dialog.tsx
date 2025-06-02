@@ -22,13 +22,15 @@ import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// kanbanColumnNames é uma string com nomes separados por nova linha (ex: "Aguardando\nEm Progresso")
+// A Server Action irá processar esta string para criar a estrutura KanbanColumnConfig[].
 const queueFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(3, { message: "O nome da fila deve ter pelo menos 3 caracteres." }),
   description: z.string().optional(),
   isActive: z.boolean().default(true),
   kanbanColumnNames: z.string().optional().describe("Nomes das colunas do Kanban, um por linha. As três primeiras serão mapeadas para Aguardando, Em Progresso, Transferido."),
-  defaultAiAgentId: z.string().optional(), // Zod .optional() resulta em `string | undefined`
+  defaultAiAgentId: z.string().optional(), 
 });
 
 export type QueueFormData = z.infer<typeof queueFormSchema>;
@@ -38,7 +40,7 @@ type QueueFormDialogProps = {
   onOpenChange: (isOpen: boolean) => void;
   onSubmit: (data: QueueFormData) => void;
   initialData?: Queue | null;
-  aiAgents: User[]; // Lista de agentes IA disponíveis
+  aiAgents: User[]; 
 };
 
 const defaultKanbanColumnTitles = ['Aguardando', 'Em Progresso', 'Transferido'];
@@ -50,8 +52,8 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
       name: '',
       description: '',
       isActive: true,
-      kanbanColumnNames: defaultKanbanColumnTitles.join('\n'),
-      defaultAiAgentId: undefined, // Alterado de '' para undefined
+      kanbanColumnNames: defaultKanbanColumnTitles.join('\\n'), // Usar \\n para que a Textarea mostre como nova linha
+      defaultAiAgentId: undefined,
       id: undefined,
     },
   });
@@ -59,21 +61,26 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
-        const columnNames = initialData.kanbanColumns && initialData.kanbanColumns.length > 0
-          ? initialData.kanbanColumns.map(col => col.title).join('\n')
-          : defaultKanbanColumnTitles.join('\n');
+        // Se initialData.kanbanColumns existir e tiver itens, transforma em string para o textarea
+        const columnNamesString = initialData.kanbanColumns && initialData.kanbanColumns.length > 0
+          ? initialData.kanbanColumns.map(col => col.title).join('\\n') // Use \\n para a string
+          : defaultKanbanColumnTitles.join('\\n');
+        
         form.reset({
-          ...initialData,
-          kanbanColumnNames: columnNames,
-          defaultAiAgentId: initialData.defaultAiAgentId || undefined, // Garante undefined se for falsy
+          id: initialData.id,
+          name: initialData.name,
+          description: initialData.description,
+          isActive: initialData.isActive,
+          kanbanColumnNames: columnNamesString,
+          defaultAiAgentId: initialData.defaultAiAgentId || undefined, 
         });
       } else {
         form.reset({
           name: '',
           description: '',
           isActive: true,
-          kanbanColumnNames: defaultKanbanColumnTitles.join('\n'),
-          defaultAiAgentId: undefined, // Garante undefined para novo formulário
+          kanbanColumnNames: defaultKanbanColumnTitles.join('\\n'), // Use \\n para a string
+          defaultAiAgentId: undefined,
           id: undefined,
         });
       }
@@ -81,10 +88,8 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
   }, [initialData, form, isOpen]);
   
   const handleFormSubmit = (data: QueueFormData) => {
-    // O valor de data.defaultAiAgentId já será string (ID do agente) ou undefined
-    // devido à lógica no onValueChange do Select.
     onSubmit(data);
-    onOpenChange(false);
+    // onOpenChange(false); // O fechamento do diálogo será gerenciado pela página pai após o sucesso do submit
   };
 
   return (
@@ -136,12 +141,8 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
                   <FormLabel>Agente IA Padrão (Opcional)</FormLabel>
                   <Select
                     onValueChange={(value) => {
-                      // Se o valor selecionado for "NONE_AI_AGENT", react-hook-form recebe undefined.
-                      // Caso contrário, recebe o ID do agente (string).
                       field.onChange(value === 'NONE_AI_AGENT' ? undefined : value);
                     }}
-                    // Se field.value (de react-hook-form) for undefined, o Select é configurado para "NONE_AI_AGENT".
-                    // Caso contrário, usa o field.value (ID do agente).
                     value={field.value === undefined ? 'NONE_AI_AGENT' : field.value}
                   >
                     <FormControl>
@@ -156,6 +157,7 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
                           {agent.name}
                         </SelectItem>
                       ))}
+                       {aiAgents.length === 0 && <SelectItem value="" disabled>Nenhum Agente IA cadastrado</SelectItem>}
                     </SelectContent>
                   </Select>
                   <FormDescription>
@@ -173,13 +175,15 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
                   <FormLabel>Nomes das Colunas do Kanban</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Aguardando\nEm Progresso\nTransferido"
+                      placeholder={"Aguardando\\nEm Progresso\\nTransferido"}
                       className="min-h-[100px]"
                       {...field}
+                      value={field.value?.replace(/\\n/g, '\n')} // Exibir novas linhas corretamente na UI
+                      onChange={(e) => field.onChange(e.target.value.replace(/\n/g, '\\n'))} // Salvar com \\n
                     />
                   </FormControl>
                   <FormDescription>
-                    Digite um nome de coluna por linha. As três primeiras serão mapeadas para os status padrão de chat.
+                    Digite um nome de coluna por linha. As três primeiras serão mapeadas para os status padrão de chat (Aguardando, Em Progresso, Transferido).
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

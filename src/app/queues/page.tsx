@@ -5,9 +5,15 @@ import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { Lock, ArrowRight, Users, Bot, PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
-import { MOCK_QUEUES, MOCK_CHATS, MOCK_CURRENT_USER, MOCK_ROLES, MOCK_USERS } from '@/lib/mock-data';
-import type { PermissionId, Queue, ChatStatusColumn, KanbanColumnConfig, User as UserType } from '@/types';
+import { Lock, ArrowRight, Users, Bot, PlusCircle, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
+import { 
+  MOCK_CURRENT_USER_FOR_INITIAL_RENDER, 
+  getClientSideCurrentUser, 
+  MOCK_ROLES, 
+  MOCK_USERS as ALL_MOCK_USERS, // Renomeado para evitar conflito com o estado local `users`
+  MOCK_CHATS // MOCK_CHATS ainda pode ser usado para info.activeChats
+} from '@/lib/mock-data';
+import type { PermissionId, Queue, ChatStatusColumn, User as UserType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import QueueFormDialog, { type QueueFormData } from '@/components/admin/queue-form-dialog';
 import {
@@ -16,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getQueuesFromFirestoreServerAction, saveQueueToFirestoreServerAction, deleteQueueFromFirestoreServerAction } from '@/app/actions/queueActions'; // Importar a nova action
 
 const defaultMappedStatuses: ChatStatusColumn[][] = [
   ['WAITING'],
@@ -24,12 +31,24 @@ const defaultMappedStatuses: ChatStatusColumn[][] = [
 ];
 
 export default function QueuesListPage() {
-  const [queues, setQueues] = useState<Queue[]>(MOCK_QUEUES);
+  const [queues, setQueues] = useState<Queue[]>([]);
+  const [isLoadingQueues, setIsLoadingQueues] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingQueue, setEditingQueue] = useState<Queue | null>(null);
   const { toast } = useToast();
   
-  const currentUserRole = MOCK_ROLES.find(role => role.id === MOCK_CURRENT_USER.roleId);
+  const [currentUser, setCurrentUser] = useState<UserType>(MOCK_CURRENT_USER_FOR_INITIAL_RENDER);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    setCurrentUser(getClientSideCurrentUser());
+  }, []);
+
+  const currentUserRole = useMemo(() => ALL_MOCK_USERS.find(u => u.id === currentUser.id)?.roleId 
+    ? MOCK_ROLES.find(role => role.id === ALL_MOCK_USERS.find(u => u.id === currentUser.id)?.roleId) 
+    : null, [currentUser.id]);
+  
   const currentUserPermissions = useMemo(() => new Set(currentUserRole?.permissions || []), [currentUserRole]);
 
   const hasAccess = useMemo(() => {
@@ -40,16 +59,36 @@ export default function QueuesListPage() {
     return currentUserPermissions.has('manage_queues');
   }, [currentUserPermissions]);
 
-  const aiAgents = useMemo(() => MOCK_USERS.filter(user => user.userType === 'AGENT_AI'), []);
-
+  const aiAgents = useMemo(() => ALL_MOCK_USERS.filter(user => user.userType === 'AGENT_AI'), []);
 
   useEffect(() => {
-    // Em um app real, as filas seriam buscadas de uma API.
-    // Para mock, se MOCK_QUEUES for atualizado externamente (improvável neste setup simples),
-    // poderíamos re-sincronizar aqui, mas para o protótipo, inicializar uma vez é suficiente.
-    setQueues(MOCK_QUEUES); 
-  }, []);
+    const fetchQueues = async () => {
+      setIsLoadingQueues(true);
+      try {
+        const firestoreQueues = await getQueuesFromFirestoreServerAction();
+        setQueues(firestoreQueues);
+      } catch (error) {
+        console.error("Failed to fetch queues:", error);
+        toast({
+          title: "Erro ao Carregar Filas",
+          description: "Não foi possível buscar as filas do banco de dados.",
+          variant: "destructive",
+        });
+      }
+      setIsLoadingQueues(false);
+    };
+    fetchQueues();
+  }, [toast]);
 
+
+  if (!isClient || isLoadingQueues) { // Mostrar loading enquanto isClient é false ou as filas estão carregando
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
+        <p className="text-lg text-muted-foreground">Carregando filas...</p>
+      </div>
+    );
+  }
 
   if (!hasAccess) {
     return (
@@ -68,14 +107,12 @@ export default function QueuesListPage() {
 
   const getQueueInfo = (queue: Queue) => {
     const chatsInQueue = MOCK_CHATS.filter(chat => chat.queueId === queue.id && (chat.status === 'IN_PROGRESS' || chat.status === 'WAITING' || chat.status === 'TRANSFERRED'));
-    const humanAgentsInQueue = MOCK_USERS.filter(user => user.userType === 'AGENT_HUMAN' && user.assignedQueueIds?.includes(queue.id)).length;
-    const allAiAgentsInQueue = MOCK_USERS.filter(user => user.userType === 'AGENT_AI' && user.assignedQueueIds?.includes(queue.id)).length; // Todos os IAs que poderiam ser atribuídos
-    const defaultAiAgent = queue.defaultAiAgentId ? MOCK_USERS.find(u => u.id === queue.defaultAiAgentId) : null;
+    const humanAgentsInQueue = ALL_MOCK_USERS.filter(user => user.userType === 'AGENT_HUMAN' && user.assignedQueueIds?.includes(queue.id)).length;
+    const defaultAiAgent = queue.defaultAiAgentId ? ALL_MOCK_USERS.find(u => u.id === queue.defaultAiAgentId) : null;
     
     return {
-      activeChats: chatsInQueue.length,
+      activeChats: chatsInQueue.length, // Esta contagem ainda usa MOCK_CHATS. Será migrada depois.
       humanAgents: humanAgentsInQueue,
-      aiAgents: allAiAgentsInQueue, // Renomeado para clareza, pode ser usado para info geral
       defaultAiAgentName: defaultAiAgent?.name,
     };
   };
@@ -90,62 +127,45 @@ export default function QueuesListPage() {
     setIsFormOpen(true);
   };
 
-  const handleDeleteQueue = (queueId: string) => {
+  const handleDeleteQueue = async (queueId: string) => {
     const queueToDelete = queues.find(q => q.id === queueId);
     if (confirm(`Tem certeza que deseja excluir a fila "${queueToDelete?.name}"?`)) {
-      setQueues(prevQueues => prevQueues.filter(q => q.id !== queueId));
-      // TODO: Em uma app real, faria uma chamada de API para excluir.
-      // E.g., MOCK_QUEUES = MOCK_QUEUES.filter(q => q.id !== queueId);
+      const success = await deleteQueueFromFirestoreServerAction(queueId);
+      if (success) {
+        setQueues(prevQueues => prevQueues.filter(q => q.id !== queueId));
+        toast({
+          title: "Fila Excluída",
+          description: `A fila "${queueToDelete?.name}" foi excluída.`,
+        });
+      } else {
+        toast({
+          title: "Erro ao Excluir",
+          description: `Não foi possível excluir a fila "${queueToDelete?.name}".`,
+          variant: "destructive",
+        });
+      }
+    }
+  };
+  
+  const handleFormSubmit = async (data: QueueFormData) => {
+    const result = await saveQueueToFirestoreServerAction(data, editingQueue?.id);
+    if (result) {
+      if (editingQueue) {
+        setQueues(prevQueues => prevQueues.map(q => (q.id === editingQueue.id ? result : q)));
+        toast({ title: "Fila Atualizada", description: `A fila "${result.name}" foi atualizada.` });
+      } else {
+        setQueues(prevQueues => [result, ...prevQueues]);
+        toast({ title: "Fila Adicionada", description: `A fila "${result.name}" foi adicionada.` });
+      }
+      setIsFormOpen(false);
+      setEditingQueue(null);
+    } else {
       toast({
-        title: "Fila Excluída",
-        description: `A fila "${queueToDelete?.name}" foi excluída.`,
+        title: "Erro ao Salvar",
+        description: "Não foi possível salvar a fila. Verifique os logs do servidor.",
+        variant: "destructive",
       });
     }
-  };
-
-  const processKanbanColumnNames = (namesString?: string): KanbanColumnConfig[] => {
-    if (!namesString || namesString.trim() === '') {
-      return [
-        { id: `col_default_1_${Date.now()}`, title: 'Aguardando', mappedStatuses: ['WAITING'] },
-        { id: `col_default_2_${Date.now()}`, title: 'Em Progresso', mappedStatuses: ['IN_PROGRESS'] },
-        { id: `col_default_3_${Date.now()}`, title: 'Transferido', mappedStatuses: ['TRANSFERRED'] },
-      ];
-    }
-    const namesArray = namesString.split('\n').map(name => name.trim()).filter(name => name !== '');
-    return namesArray.map((name, index) => ({
-      id: `col_${index}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      title: name,
-      mappedStatuses: index < defaultMappedStatuses.length ? defaultMappedStatuses[index] : [],
-    }));
-  };
-
-  const handleFormSubmit = (data: QueueFormData) => {
-    const newKanbanColumns = processKanbanColumnNames(data.kanbanColumnNames);
-
-    if (editingQueue) {
-      const updatedQueues = queues.map(q => 
-        q.id === editingQueue.id ? { ...q, ...data, kanbanColumns: newKanbanColumns, defaultAiAgentId: data.defaultAiAgentId || undefined } : q
-      );
-      setQueues(updatedQueues);
-      // TODO: Em uma app real, MOCK_QUEUES seria atualizado ou uma chamada de API seria feita.
-      // const mockIndex = MOCK_QUEUES.findIndex(q => q.id === editingQueue.id);
-      // if (mockIndex !== -1) MOCK_QUEUES[mockIndex] = updatedQueues.find(q => q.id === editingQueue.id)!;
-      toast({ title: "Fila Atualizada", description: `A fila "${data.name}" foi atualizada.` });
-    } else {
-      const newQueue: Queue = {
-        id: `queue_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        name: data.name,
-        description: data.description || '',
-        isActive: data.isActive,
-        kanbanColumns: newKanbanColumns,
-        defaultAiAgentId: data.defaultAiAgentId || undefined,
-      };
-      setQueues(prevQueues => [newQueue, ...prevQueues]);
-      // TODO: Em uma app real, MOCK_QUEUES seria atualizado ou uma chamada de API seria feita.
-      // MOCK_QUEUES.unshift(newQueue);
-      toast({ title: "Fila Adicionada", description: `A fila "${data.name}" foi adicionada.` });
-    }
-    setIsFormOpen(false);
   };
 
   return (
@@ -167,7 +187,7 @@ export default function QueuesListPage() {
         
         {activeQueues.length === 0 ? (
            <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted-foreground/30 rounded-lg">
-              <p className="text-muted-foreground">Nenhuma fila ativa para exibir.</p>
+              <p className="text-muted-foreground">Nenhuma fila ativa para exibir. Crie uma nova fila ou verifique o banco de dados.</p>
             </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -200,7 +220,7 @@ export default function QueuesListPage() {
                   </CardHeader>
                   <CardContent className="space-y-3 flex-grow">
                     <div className="text-sm text-muted-foreground">
-                      <p>Chats Ativos: <span className="font-semibold text-foreground">{info.activeChats}</span></p>
+                      <p>Chats Ativos (Mock): <span className="font-semibold text-foreground">{info.activeChats}</span></p>
                       <div className="flex items-center">
                         <Users className="h-4 w-4 mr-2 text-primary" />
                         Agentes Humanos: <span className="font-semibold text-foreground ml-1">{info.humanAgents}</span>
@@ -236,5 +256,3 @@ export default function QueuesListPage() {
     </>
   );
 }
-
-    
