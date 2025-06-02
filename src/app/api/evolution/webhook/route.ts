@@ -1,6 +1,7 @@
 
 // src/app/api/evolution/webhook/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
+import { processIncomingWebhookMessageServerAction } from '@/app/actions/chatActions'; // Importar Server Action
 
 const EVOLUTION_API_WEBHOOK_SECRET = process.env.EVOLUTION_API_WEBHOOK_SECRET;
 
@@ -10,34 +11,51 @@ const EVOLUTION_API_WEBHOOK_SECRET = process.env.EVOLUTION_API_WEBHOOK_SECRET;
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Validar a requisição
     if (EVOLUTION_API_WEBHOOK_SECRET) {
-      const requestSecret = request.headers.get('X-Evolution-Api-Secret'); // Ou qualquer header que a Evolution API use
+      const requestSecret = request.headers.get('X-Evolution-Api-Secret'); 
       if (requestSecret !== EVOLUTION_API_WEBHOOK_SECRET) {
         console.warn('Webhook da Evolution API: Falha na validação do token secreto.');
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
     } else {
-      // Em ambiente de desenvolvimento, pode ser útil logar um aviso se o secret não estiver configurado.
-      // Em produção, a ausência do secret deveria idealmente impedir o webhook de funcionar ou logar um erro crítico.
       console.warn('EVOLUTION_API_WEBHOOK_SECRET não está configurado. Webhook está operando em modo inseguro.');
     }
 
     const body = await request.json();
     console.log('Webhook da Evolution API Recebido:', JSON.stringify(body, null, 2));
 
-    // TODO:
-    // 2. Processar o evento:
-    //    - Se for uma nova mensagem (ex: event 'messages.upsert'):
-    //      - Extrair detalhes da mensagem (remetente, conteúdo, ID da mensagem do WhatsApp).
-    //      - Verificar se já existe um chat para este remetente.
-    //      - Se não, criar um novo Chat.
-    //      - Adicionar a mensagem ao Chat.
-    //      - Notificar a UI sobre a nova mensagem/chat (via WebSockets, Server-Sent Events, ou polling).
-    //    - Se for uma atualização de status de conexão da instância (ex: event 'connection.update'):
-    //      - Atualizar o status da conexão no sistema.
+    // Exemplo de como extrair dados e chamar a Server Action
+    // Adapte isso à estrutura real do payload da Evolution API
+    if (body.event === 'messages.upsert' && body.data && body.data.message) {
+      const messageData = body.data.message;
+      const customerContact = body.data.key?.remoteJid?.split('@')[0]; // Ex: 5511999998888
+      const customerName = body.data.pushName || `Cliente ${customerContact}`; // Nome do contato ou fallback
 
-    // Por enquanto, apenas retornamos 200 OK.
+      if (messageData.message?.conversation || messageData.message?.extendedTextMessage?.text) {
+        const messageContent = messageData.message.conversation || messageData.message.extendedTextMessage.text;
+        
+        // Chamar a Server Action para processar a mensagem
+        const processedChat = await processIncomingWebhookMessageServerAction({
+          customerName: customerName,
+          customerPhone: customerContact || 'unknown_phone', // Garantir que tem um valor
+          messageContent: messageContent,
+          whatsappMessageId: messageData.key?.id,
+          // queueId: 'queue_pre_atendimento', // Pode ser definido por regras de roteamento ou padrão
+          // chatId: se a evolution api puder enviar o ID do chat no seu sistema
+        });
+
+        if (processedChat) {
+          console.log(`[Webhook] Mensagem processada para o chat ID: ${processedChat.id}`);
+          // TODO: Notificar a UI sobre a nova mensagem/chat (via WebSockets, Server-Sent Events, ou polling).
+        } else {
+          console.error('[Webhook] Falha ao processar a mensagem via Server Action.');
+        }
+      }
+    } else if (body.event === 'connection.update') {
+      console.log('[Webhook] Atualização de status de conexão da instância:', body.data);
+      // TODO: Atualizar o status da conexão no sistema.
+    }
+
     return NextResponse.json({ message: 'Webhook recebido com sucesso!' }, { status: 200 });
 
   } catch (error) {
@@ -50,7 +68,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// A Evolution API pode enviar um GET para verificar se o webhook está ativo.
 export async function GET(request: NextRequest) {
   return NextResponse.json({ message: 'Webhook da Evolution API está ativo e pronto para receber POSTs.' }, { status: 200 });
 }

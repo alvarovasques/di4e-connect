@@ -3,7 +3,8 @@
 
 import React, { useEffect, useRef, useState, FormEvent } from 'react';
 import type { Chat, Message, User, KnowledgeBaseArticle, Queue, KBItem, MessageType, OracleQueryInput, OracleQueryOutput } from '@/types';
-import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ITEMS, MOCK_CURRENT_USER } from '@/lib/mock-data';
+// import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ITEMS, MOCK_CURRENT_USER } from '@/lib/mock-data'; // Usar server-memory-store
+import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ITEMS, MOCK_CURRENT_USER } from '@/lib/server-memory-store';
 import MessageBubble from './message-bubble';
 import MessageInputArea from './message-input-area';
 import KnowledgeBaseSuggestionItem from './knowledge-base-suggestion-item';
@@ -33,9 +34,15 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { 
+  getChatDetailsServerAction, 
+  sendChatMessageServerAction,
+  assignChatToServerAction,
+  updateChatStatusServerAction
+} from '@/app/actions/chatActions';
 
 type ActiveChatAreaProps = {
-  chat: Chat | null;
+  chat: Chat | null; // O chat inicial passado como prop
 };
 
 interface OracleUIMessage {
@@ -62,14 +69,15 @@ const DEFAULT_ORACLE_PROMPT_SUGGESTIONS = [
 ];
 
 
-const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
+const ActiveChatArea = ({ chat: initialChatProp }: ActiveChatAreaProps) => {
   const searchParams = useSearchParams();
   const initialAction = searchParams.get('action');
 
-  const [chat, setChat] = useState<Chat | null>(initialChat);
-  const [messages, setMessages] = useState<Message[]>(initialChat?.messages || []);
+  const [currentChat, setCurrentChat] = useState<Chat | null>(initialChatProp);
+  const [messages, setMessages] = useState<Message[]>(initialChatProp?.messages || []);
   const [suggestedArticles, setSuggestedArticles] = useState<KnowledgeBaseArticle[]>([]);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
+  const [isLoadingChatDetails, setIsLoadingChatDetails] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const oracleScrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -80,7 +88,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   const currentUser = MOCK_CURRENT_USER;
   const isSupervisor = currentUser.userType === 'SUPERVISOR' || currentUser.userType === 'ADMIN';
   const isAgent = currentUser.userType === 'AGENT_HUMAN';
-  const isCurrentUserAssigned = chat?.assignedTo === currentUser.id;
+  const isCurrentUserAssigned = currentChat?.assignedTo === currentUser.id;
 
   const [oracleUserInput, setOracleUserInput] = useState('');
   const [oracleMessages, setOracleMessages] = useState<OracleUIMessage[]>([]);
@@ -98,26 +106,45 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
 
   useEffect(() => {
-    setChat(initialChat);
-    setMessages(initialChat?.messages || []);
+    const loadChatDetails = async (chatId: string) => {
+      setIsLoadingChatDetails(true);
+      try {
+        const chatDetails = await getChatDetailsServerAction(chatId);
+        setCurrentChat(chatDetails);
+        setMessages(chatDetails?.messages || []);
+        
+        if (chatDetails) {
+          if (!isSupervisor) { 
+              fetchAiSuggestions(chatDetails.messages);
+          } else { 
+            const lastCustomerMessage = [...chatDetails.messages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
+            if (lastCustomerMessage && lastCustomerMessage.sentimentScore === undefined) {
+                fetchSentiment(lastCustomerMessage, chatId); // Pass chatId
+            } else if (lastCustomerMessage && lastCustomerMessage.sentimentScore !== undefined && !chatDetails.aiAnalysis) {
+                setCurrentChat(prevChat => prevChat ? {...prevChat, aiAnalysis: {sentimentScore: lastCustomerMessage.sentimentScore!, confidenceIndex: 1 }} : null);
+            }
+          }
+        } else {
+          setSuggestedArticles([]);
+        }
+      } catch (error) {
+        console.error("Error loading chat details:", error);
+        toast({ title: "Erro ao carregar chat", description: "Não foi possível buscar os detalhes do chat.", variant: "destructive" });
+      }
+      setIsLoadingChatDetails(false);
+    };
+
+    if (initialChatProp?.id) {
+      loadChatDetails(initialChatProp.id);
+    } else {
+      setCurrentChat(null);
+      setMessages([]);
+      setSuggestedArticles([]);
+    }
+    // Redefinir estados relacionados ao Oracle e Supervisor
     setOracleMessages([]); 
     setOracleUserInput('');
     setOracleSuggestions(DEFAULT_ORACLE_PROMPT_SUGGESTIONS);
-    
-    if (initialChat) {
-      if (!isSupervisor) { 
-          fetchAiSuggestions(initialChat.messages);
-      } else { 
-        const lastCustomerMessage = [...initialChat.messages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
-        if (lastCustomerMessage && lastCustomerMessage.sentimentScore === undefined) {
-            fetchSentiment(lastCustomerMessage);
-        } else if (lastCustomerMessage && lastCustomerMessage.sentimentScore !== undefined && chat && !chat.aiAnalysis) {
-            setChat(prevChat => prevChat ? {...prevChat, aiAnalysis: {sentimentScore: lastCustomerMessage.sentimentScore!, confidenceIndex: 1 }} : null);
-        }
-      }
-    } else {
-      setSuggestedArticles([]);
-    }
     setSupervisorEvaluationScore(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
     setSupervisorFeedback('');
     
@@ -127,8 +154,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     }
     setActiveTab(newActiveTab);
 
-
-  }, [initialChat, isSupervisor, isAgent, initialAction, canCurrentUserWhisper]); 
+  }, [initialChatProp, isSupervisor, isAgent, initialAction, canCurrentUserWhisper]); 
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -148,17 +174,22 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     }
   }, [oracleMessages]);
 
-  const fetchSentiment = async (messageToAnalyze: Message) => {
-    if (!chat) return;
+  const fetchSentiment = async (messageToAnalyze: Message, chatIdForUpdate: string) => {
+    if (!currentChat) return; // Use currentChat from state
     setIsLoadingAi(true);
     try {
       const sentimentResult = await analyzeSentiment({ text: messageToAnalyze.content });
       setMessages(prevMessages => prevMessages.map(m => 
           m.id === messageToAnalyze.id ? { ...m, sentimentScore: sentimentResult.sentimentScore } : m
       ));
-      if (chat) {
-          setChat(prevChat => prevChat ? {...prevChat, aiAnalysis: {sentimentScore: sentimentResult.sentimentScore, confidenceIndex: sentimentResult.confidenceIndex}} : null);
-      }
+      // Atualizar o estado do currentChat com a análise de sentimento
+      setCurrentChat(prevChat => {
+        if (prevChat && prevChat.id === chatIdForUpdate) {
+          return {...prevChat, aiAnalysis: {sentimentScore: sentimentResult.sentimentScore, confidenceIndex: sentimentResult.confidenceIndex}};
+        }
+        return prevChat;
+      });
+
     } catch (error) {
       console.error("AI sentiment analysis error:", error);
       toast({ title: "Erro de IA", description: "Não foi possível buscar análise de sentimento.", variant: "destructive" });
@@ -167,7 +198,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   };
 
   const fetchAiSuggestions = async (currentMessages: Message[]) => {
-    if (!chat || currentMessages.length === 0) return;
+    if (!currentChat || currentMessages.length === 0) return;
     setIsLoadingAi(true);
     try {
       const chatContent = currentMessages.filter(m => m.type !== 'whisper').map(m => `${m.sender}: ${m.content}`).join('\n');
@@ -204,94 +235,99 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     setIsLoadingAi(false);
   };
   
-  const handleSendMessage = (content: string, type: MessageType = 'text') => {
-    if (!chat) return;
-    const newMessage: Message = {
-      id: `msg_${chat.id}_${Date.now()}`,
-      chatId: chat.id,
-      content,
-      type,
-      sender: 'agent', 
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      timestamp: new Date(),
-      isFromCustomer: false,
-    };
-    const updatedMessages = [...messages, newMessage];
-    setMessages(updatedMessages);
-    if (!isSupervisor) {
-      fetchAiSuggestions(updatedMessages); 
+  const handleSendMessage = async (content: string, type: MessageType = 'text') => {
+    if (!currentChat) return;
+    const newMessage = await sendChatMessageServerAction(currentChat.id, content, currentUser.id, type);
+    if (newMessage) {
+      setMessages(prevMessages => [...prevMessages, newMessage]);
+      if (!isSupervisor && type === 'text') { // Só buscar sugestões para mensagens de texto normais do agente
+        fetchAiSuggestions([...messages, newMessage]); 
+      }
+      // Atualizar o lastMessagePreview no chat principal
+      setCurrentChat(prev => prev ? {...prev, lastMessagePreview: newMessage.content.substring(0,50)+"..." , lastActivity: new Date(newMessage.timestamp) } : null);
+    } else {
+      toast({ title: "Erro ao enviar mensagem", variant: "destructive" });
     }
   };
 
-  const handleSendWhisper = (content: string) => {
-    if (!chat || !canCurrentUserWhisper) return;
-    const newWhisperMessage: Message = {
-      id: `whisper_${chat.id}_${Date.now()}`,
-      chatId: chat.id,
-      content,
-      type: 'whisper',
-      sender: isSupervisor ? 'supervisor' : 'agent',
-      senderId: currentUser.id,
-      senderName: `${currentUser.name}`, 
-      timestamp: new Date(),
-      isFromCustomer: false,
-      targetAgentId: chat.assignedTo || undefined, 
-    };
-    setMessages(prevMessages => [...prevMessages, newWhisperMessage]);
-    toast({ title: "Sussurro enviado", description: "Sua nota interna foi enviada." });
+  const handleSendWhisper = async (content: string) => {
+    if (!currentChat || !canCurrentUserWhisper) return;
+    const whisperMessage = await sendChatMessageServerAction(currentChat.id, content, currentUser.id, 'whisper');
+    if (whisperMessage) {
+      setMessages(prevMessages => [...prevMessages, whisperMessage]);
+      toast({ title: "Sussurro enviado", description: "Sua nota interna foi enviada." });
+    } else {
+      toast({ title: "Erro ao enviar sussurro", variant: "destructive" });
+    }
   };
 
   const handleTransferChatSubmit = (targetType: 'queue' | 'agent', targetId: string) => {
+    // TODO: Implementar Server Action para transferência de chat
     const targetTypePt = targetType === 'queue' ? 'fila' : 'agente';
     toast({
       title: "Transferência de Chat Iniciada (Simulação)",
       description: `Chat transferido para ${targetTypePt} ID: ${targetId}.`,
     });
-    if(chat) setChat(prev => prev ? {...prev, status: 'TRANSFERRED', assignedTo: targetType === 'agent' ? targetId : null} : null);
+    if(currentChat) setCurrentChat(prev => prev ? {...prev, status: 'TRANSFERRED', assignedTo: targetType === 'agent' ? targetId : null} : null);
   };
   
-  const handleSupervisorAssumeChat = () => {
-    if (!chat || !isSupervisor) return;
-    setChat(prev => prev ? {...prev, assignedTo: currentUser.id, status: 'IN_PROGRESS'} : null);
-    toast({
-      title: "Chat Assumido (Supervisor)",
-      description: `Supervisor ${currentUser.name} assumiu o chat ID: ${chat.id}.`,
-    });
+  const handleSupervisorAssumeChat = async () => {
+    if (!currentChat || !isSupervisor) return;
+    const updatedChat = await assignChatToServerAction(currentChat.id, currentUser.id);
+    if (updatedChat) {
+      setCurrentChat(updatedChat); // Atualiza com o status e assignedTo do servidor
+      toast({
+        title: "Chat Assumido (Supervisor)",
+        description: `Supervisor ${currentUser.name} assumiu o chat ID: ${currentChat.id}.`,
+      });
+    }
   };
 
-  const handleAgentAssumeChat = () => {
-    if (!chat || !isAgent) return;
-    setChat(prev => prev ? {...prev, assignedTo: currentUser.id, status: 'IN_PROGRESS'} : null);
-    toast({
-      title: "Chat Assumido",
-      description: `Você assumiu o chat com ${chat.customerName}.`,
-    });
+  const handleAgentAssumeChat = async () => {
+    if (!currentChat || !isAgent) return;
+    const updatedChat = await assignChatToServerAction(currentChat.id, currentUser.id);
+     if (updatedChat) {
+      setCurrentChat(updatedChat);
+      // Talvez mudar status para IN_PROGRESS se for assumido com sucesso
+      // Esta lógica pode ser movida para a Server Action também.
+      const finalChat = await updateChatStatusServerAction(currentChat.id, 'IN_PROGRESS');
+      if (finalChat) setCurrentChat(finalChat);
+      toast({
+        title: "Chat Assumido",
+        description: `Você assumiu o chat com ${currentChat.customerName}.`,
+      });
+    }
   };
 
-  const handleAgentStartChat = () => {
-    if (!chat || !isAgent) return;
-    setChat(prev => prev ? {...prev, status: 'IN_PROGRESS'} : null);
-    toast({
-      title: "Chat Iniciado",
-      description: `Você iniciou o atendimento com ${chat.customerName}.`,
-    });
+  const handleAgentStartChat = async () => {
+    if (!currentChat || !isAgent) return;
+    const updatedChat = await updateChatStatusServerAction(currentChat.id, 'IN_PROGRESS');
+    if (updatedChat) {
+      setCurrentChat(updatedChat);
+      toast({
+        title: "Chat Iniciado",
+        description: `Você iniciou o atendimento com ${currentChat.customerName}.`,
+      });
+    }
   };
 
-  const handleResolveChat = () => {
-     if (!chat) return;
-    setChat(prev => prev ? {...prev, status: 'RESOLVED'} : null);
-    toast({
-      title: "Chat Resolvido (Simulação)",
-      description: `Chat ID: ${chat.id} marcado como resolvido.`,
-    });
+  const handleResolveChat = async () => {
+     if (!currentChat) return;
+    const updatedChat = await updateChatStatusServerAction(currentChat.id, 'RESOLVED');
+    if (updatedChat) {
+      setCurrentChat(updatedChat);
+      toast({
+        title: "Chat Resolvido",
+        description: `Chat ID: ${currentChat.id} marcado como resolvido.`,
+      });
+    }
   }
 
   const handleSaveSupervisorEvaluation = () => {
-    if(!chat || !isSupervisor) return;
+    if(!currentChat || !isSupervisor) return;
     toast({
       title: "Avaliação do Supervisor Salva (Simulação)",
-      description: `Avaliação para o chat ${chat.id}: Score ${supervisorEvaluationScore}, Feedback: "${supervisorFeedback || 'N/A'}"`,
+      description: `Avaliação para o chat ${currentChat.id}: Score ${supervisorEvaluationScore}, Feedback: "${supervisorFeedback || 'N/A'}"`,
     });
   };
   
@@ -314,7 +350,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   const handleOracleQuerySubmit = async (e?: FormEvent<HTMLFormElement>, suggestion?: string) => {
     if (e) e.preventDefault();
     const currentInput = suggestion || oracleUserInput;
-    if (currentInput.trim() === '' || !chat) return;
+    if (currentInput.trim() === '' || !currentChat) return;
 
     const userOracleMessage: OracleUIMessage = {
       id: `oracle-user-${Date.now()}`,
@@ -368,8 +404,16 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     handleOracleQuerySubmit(undefined, suggestion);
   };
 
+  if (isLoadingChatDetails && !currentChat) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center bg-muted/30 p-8">
+        <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
+        <p className="text-lg text-muted-foreground">Carregando detalhes do chat...</p>
+      </div>
+    );
+  }
 
-  if (!chat) {
+  if (!currentChat) {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-muted/30 p-8">
         <MessageSquareQuote className="h-16 w-16 text-muted-foreground/50 mb-4" />
@@ -379,11 +423,11 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     );
   }
 
-  const assignedAgentDetails = MOCK_USERS.find(u => u.id === chat.assignedTo);
+  const assignedAgentDetails = MOCK_USERS.find(u => u.id === currentChat.assignedTo);
   
-  const agentCanAssumeWaitingChat = isAgent && chat.status === 'WAITING' && (!chat.assignedTo || chat.assignedTo !== currentUser.id) && currentUser.assignedQueueIds?.includes(chat.queueId);
-  const agentCanStartAssignedWaitingChat = isAgent && chat.status === 'WAITING' && isCurrentUserAssigned;
-  const agentCanManageInProgressChat = isAgent && chat.status === 'IN_PROGRESS' && isCurrentUserAssigned;
+  const agentCanAssumeWaitingChat = isAgent && currentChat.status === 'WAITING' && (!currentChat.assignedTo || currentChat.assignedTo !== currentUser.id) && currentUser.assignedQueueIds?.includes(currentChat.queueId);
+  const agentCanStartAssignedWaitingChat = isAgent && currentChat.status === 'WAITING' && isCurrentUserAssigned;
+  const agentCanManageInProgressChat = isAgent && currentChat.status === 'IN_PROGRESS' && isCurrentUserAssigned;
 
 
   return (
@@ -392,21 +436,21 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
         <header className="flex items-center justify-between border-b p-3 gap-2 md:p-4">
           <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
             <Avatar className="h-9 w-9 sm:h-10 sm:w-10 border flex-shrink-0">
-              <AvatarImage src={chat.avatarUrl} alt={chat.customerName} data-ai-hint="person avatar"/>
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {chat.customerName.substring(0, 2).toUpperCase()}
+              <AvatarImage src={currentChat.avatarUrl} alt={currentChat.customerName} data-ai-hint="person avatar"/>
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
+                {currentChat.customerName.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="overflow-hidden">
-              <h2 className="font-semibold text-foreground truncate">{chat.customerName}</h2>
+              <h2 className="font-semibold text-foreground truncate text-sm sm:text-base">{currentChat.customerName}</h2>
               <p className="text-xs text-muted-foreground truncate">
-                {chat.status === 'IN_PROGRESS' && assignedAgentDetails ? `Conversando com ${assignedAgentDetails.name}` : chat.status}
+                {currentChat.status === 'IN_PROGRESS' && assignedAgentDetails ? `Conversando com ${assignedAgentDetails.name}` : currentChat.status}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-             {isSupervisor && chat.aiAnalysis && (
-                <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} simple />
+             {!isSupervisor && currentChat.aiAnalysis && ( // Agente não vê sentimento global no header
+                <SentimentDisplay score={currentChat.aiAnalysis.sentimentScore} confidence={currentChat.aiAnalysis.confidenceIndex} simple />
              )}
 
             {agentCanAssumeWaitingChat && (
@@ -432,7 +476,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
               </>
             )}
 
-            {isSupervisor && (
+            {isSupervisor && ( // Lógica para supervisor permanece aqui, mas o componente principal é SupervisorActiveChatArea
               <>
                 <ChatTransferDialog 
                     queues={MOCK_QUEUES.filter(q => q.isActive)} 
@@ -465,36 +509,39 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
         <ScrollArea className="flex-1 p-3 md:p-4" ref={scrollAreaRef}>
           <div className="space-y-4">
+            {isLoadingChatDetails && messages.length === 0 && (
+                <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>
+            )}
             {messages.map((msg) => (
               <MessageBubble 
                 key={msg.id} 
                 message={msg} 
                 senderUser={MOCK_USERS.find(u => u.id === msg.senderId)}
-                assignedAgentId={chat.assignedTo}
+                assignedAgentId={currentChat.assignedTo}
               />
             ))}
-            {isLoadingAi && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin text-primary"/></div>}
+            {isLoadingAi && !isSupervisor && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin text-primary"/></div>}
           </div>
         </ScrollArea>
 
         <MessageInputArea 
             onSendMessage={handleSendMessage} 
             onSendWhisper={handleSendWhisper}
-            disabled={chat.status === 'RESOLVED' || chat.status === 'CLOSED' || (isAgent && chat.status === 'WAITING' && !isCurrentUserAssigned)}
+            disabled={currentChat.status === 'RESOLVED' || currentChat.status === 'CLOSED' || (isAgent && currentChat.status === 'WAITING' && !isCurrentUserAssigned)}
             canWhisper={canCurrentUserWhisper}
         />
       </div>
       
       <aside className="hidden lg:flex w-80 flex-col border-l bg-muted/20">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className={cn("grid w-full rounded-none border-b", isSupervisor ? "grid-cols-3" : "grid-cols-4")}>
+           <TabsList className={cn("grid w-full rounded-none border-b", isSupervisor ? "grid-cols-3" : "grid-cols-4")}>
              {isSupervisor ? (
                 <>
                     <TabsTrigger value="details" className="text-xs px-1 py-2.5"><Info className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Detalhes</span></TabsTrigger>
                     <TabsTrigger value="notes" className="text-xs px-1 py-2.5"><MessageSquareQuote className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Notas</span></TabsTrigger>
                     <TabsTrigger value="ia_eval" className="text-xs px-1 py-2.5"><Sparkles className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Análise IA</span></TabsTrigger>
                 </>
-             ) : (
+             ) : ( // Agente
                 <>
                     <TabsTrigger value="details" className="text-xs px-1 py-2.5"><Info className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Detalhes</span></TabsTrigger>
                     <TabsTrigger value="notes" className="text-xs px-1 py-2.5"><MessageSquareQuote className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Notas</span></TabsTrigger>
@@ -510,19 +557,19 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                 <Card>
                   <CardHeader><CardTitle className="text-base">Detalhes do Cliente</CardTitle></CardHeader>
                   <CardContent className="text-sm space-y-1">
-                    <p><strong>Nome:</strong> {chat.customerName}</p>
-                    <p><strong>Telefone:</strong> {chat.customerPhone}</p>
-                    <p><strong>Fila:</strong> {MOCK_QUEUES.find(q => q.id === chat.queueId)?.name || 'N/D'}</p>
-                    <p><strong>Prioridade:</strong> <span className={`font-semibold ${chat.priority === 'HIGH' || chat.priority === 'URGENT' ? 'text-destructive' : ''}`}>{chat.priority}</span></p>
-                     <p><strong>Status:</strong> {chat.status}</p>
+                    <p><strong>Nome:</strong> {currentChat.customerName}</p>
+                    <p><strong>Telefone:</strong> {currentChat.customerPhone}</p>
+                    <p><strong>Fila:</strong> {MOCK_QUEUES.find(q => q.id === currentChat.queueId)?.name || 'N/D'}</p>
+                    <p><strong>Prioridade:</strong> <span className={`font-semibold ${currentChat.priority === 'HIGH' || currentChat.priority === 'URGENT' ? 'text-destructive' : ''}`}>{currentChat.priority}</span></p>
+                     <p><strong>Status:</strong> {currentChat.status}</p>
                      <p><strong>Agente:</strong> {assignedAgentDetails?.name || "Não atribuído"}</p>
                   </CardContent>
                 </Card>
-                 {isSupervisor && chat.aiAnalysis && ( 
+                 {isSupervisor && currentChat.aiAnalysis && ( 
                   <Card>
                     <CardHeader><CardTitle className="text-base">Sentimento (IA)</CardTitle></CardHeader>
                     <CardContent>
-                      <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} />
+                      <SentimentDisplay score={currentChat.aiAnalysis.sentimentScore} confidence={currentChat.aiAnalysis.confidenceIndex} />
                     </CardContent>
                   </Card>
                  )}
