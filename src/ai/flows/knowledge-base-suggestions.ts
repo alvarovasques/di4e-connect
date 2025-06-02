@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -75,7 +76,11 @@ const suggestKnowledgeBaseArticlesFlow = ai.defineFlow(
     outputSchema: SuggestKnowledgeBaseArticlesOutputSchema,
   },
   async input => {
+    // Este fluxo demonstra como a IA ("IA-mãe" ou sistema Genkit)
+    // pode consumir a Base de Conhecimento para fornecer sugestões relevantes
+    // aos usuários (humanos ou outros sistemas de IA).
     const {output} = await prompt(input);
     return output!;
   }
 );
+
