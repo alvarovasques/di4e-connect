@@ -3,102 +3,17 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Lock, Eye, MessageSquareQuote, CornerRightUp } from 'lucide-react';
-import { MOCK_QUEUES, MOCK_CHATS, MOCK_CURRENT_USER, MOCK_ROLES } from '@/lib/mock-data';
-import type { Queue, Chat, PermissionId } from '@/types';
-import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { Lock, ArrowRight, Users, Bot } from 'lucide-react';
+import { MOCK_QUEUES, MOCK_CHATS, MOCK_CURRENT_USER, MOCK_ROLES, MOCK_USERS } from '@/lib/mock-data';
+import type { PermissionId } from '@/types';
 
-const QueueCard = ({ queue, chatsInQueue }: { queue: Queue; chatsInQueue: Chat[] }) => {
-  const router = useRouter();
-  const { toast } = useToast();
-
-  const handleViewChat = (chatId: string) => {
-    // Em um cenário real, o supervisor poderia ver o chat em um modal ou ser redirecionado
-    // Para agora, vamos apenas simular e permitir que ele vá para a página de chat principal
-    // O supervisor não será o "assignedTo" automaticamente, mas poderá ver a conversa
-    router.push(`/chat?chatId=${chatId}`); // Simples redirecionamento para ActiveChatArea
-    toast({
-      title: "Visualizando Chat (Supervisor)",
-      description: `Você está visualizando o chat ID: ${chatId}. Você pode sussurrar ou assumir o controle na tela de chat.`,
-    });
-  };
-
-  const handleAssumeChat = (chatId: string) => {
-    // Lógica para o supervisor assumir o chat (atualizar MOCK_CHATS)
-    // Esta é uma simulação, precisaria de gerenciamento de estado mais robusto
-    toast({
-      title: "Chat Assumido (Simulação)",
-      description: `Supervisor assumiu o chat ID: ${chatId}.`,
-    });
-    // Exemplo: MOCK_CHATS.find(c => c.id === chatId).assignedTo = MOCK_CURRENT_USER.id;
-  };
-  
-  const handleWhisper = (chatId: string) => {
-     router.push(`/chat?chatId=${chatId}&action=whisper`);
-     toast({
-      title: "Sussurrar no Chat (Supervisor)",
-      description: `Redirecionando para o chat ID: ${chatId} para enviar um sussurro.`,
-    });
-  }
-
-  return (
-    <Card className="w-80 min-w-80 flex-shrink-0 shadow-md">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-headline">{queue.name}</CardTitle>
-        <CardDescription className="text-xs">{queue.description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-2 h-96 overflow-y-auto p-4">
-        {chatsInQueue.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">Nenhum chat nesta fila.</p>
-        ) : (
-          chatsInQueue.map(chat => (
-            <Card key={chat.id} className="p-3 bg-card/70 hover:shadow-lg transition-shadow">
-              <div className="flex justify-between items-start mb-1">
-                <h4 className="font-semibold text-sm text-foreground">{chat.customerName}</h4>
-                <Badge 
-                  variant={chat.status === 'IN_PROGRESS' ? 'default' : chat.status === 'WAITING' ? 'secondary' : 'outline'}
-                  className={cn(
-                    chat.priority === 'HIGH' && 'bg-accent text-accent-foreground',
-                    chat.priority === 'URGENT' && 'bg-destructive text-destructive-foreground'
-                  )}
-                >
-                  {chat.status} {chat.priority !== 'MEDIUM' && `(${chat.priority})`}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground truncate mb-2">{chat.lastMessagePreview}</p>
-              <div className="flex gap-1 justify-end">
-                <Button variant="outline" size="xs" onClick={() => handleViewChat(chat.id)} title="Visualizar Chat">
-                  <Eye className="h-3 w-3" />
-                </Button>
-                 <Button variant="outline" size="xs" onClick={() => handleWhisper(chat.id)} title="Sussurrar para Agente">
-                  <MessageSquareQuote className="h-3 w-3" />
-                </Button>
-                <Button variant="outline" size="xs" onClick={() => handleAssumeChat(chat.id)} title="Assumir Chat">
-                  <CornerRightUp className="h-3 w-3" />
-                </Button>
-              </div>
-            </Card>
-          ))
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
-export default function QueuesPage() {
+export default function QueuesListPage() {
   const currentUserRole = MOCK_ROLES.find(role => role.id === MOCK_CURRENT_USER.roleId);
   const currentUserPermissions = useMemo(() => new Set(currentUserRole?.permissions || []), [currentUserRole]);
 
   const hasAccess = useMemo(() => {
-    // Supervisores e Admins devem ter 'access_queues_module'
-    // e também 'supervisor_view_all_chats' ou uma permissão similar para esta página.
-    // Por simplicidade, usaremos 'access_queues_module' como chave principal para acesso à página.
     return currentUserPermissions.has('access_queues_module');
   }, [currentUserPermissions]);
 
@@ -117,29 +32,62 @@ export default function QueuesPage() {
 
   const activeQueues = MOCK_QUEUES.filter(q => q.isActive);
 
+  const getQueueStats = (queueId: string) => {
+    const chatsInQueue = MOCK_CHATS.filter(chat => chat.queueId === queueId && (chat.status === 'IN_PROGRESS' || chat.status === 'WAITING' || chat.status === 'TRANSFERRED'));
+    const humanAgentsInQueue = MOCK_USERS.filter(user => user.userType === 'AGENT_HUMAN' && user.assignedQueueIds?.includes(queueId)).length;
+    const aiAgentsInQueue = MOCK_USERS.filter(user => user.userType === 'AGENT_AI' && user.assignedQueueIds?.includes(queueId)).length;
+    return {
+      activeChats: chatsInQueue.length,
+      humanAgents: humanAgentsInQueue,
+      aiAgents: aiAgentsInQueue,
+    };
+  };
+
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      <div className="flex-shrink-0">
-        <h1 className="text-3xl font-bold font-headline text-foreground">Gerenciamento de Filas (Kanban)</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold font-headline text-foreground">Filas de Atendimento</h1>
         <p className="text-muted-foreground">
-          Visualize e gerencie os chats em andamento em todas as filas ativas.
+          Selecione uma fila para visualizar e gerenciar os chats em andamento.
         </p>
       </div>
       
       {activeQueues.length === 0 ? (
-         <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted-foreground/30 rounded-lg flex-grow">
+         <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted-foreground/30 rounded-lg">
             <p className="text-muted-foreground">Nenhuma fila ativa para exibir.</p>
           </div>
       ) : (
-        <ScrollArea className="flex-grow whitespace-nowrap rounded-md border p-4">
-          <div className="flex gap-4 pb-4">
-            {activeQueues.map(queue => {
-              const chatsInQueue = MOCK_CHATS.filter(chat => chat.queueId === queue.id && (chat.status === 'IN_PROGRESS' || chat.status === 'WAITING' || chat.status === 'TRANSFERRED'));
-              return <QueueCard key={queue.id} queue={queue} chatsInQueue={chatsInQueue} />;
-            })}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {activeQueues.map(queue => {
+            const stats = getQueueStats(queue.id);
+            return (
+              <Card key={queue.id} className="shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="text-xl font-headline">{queue.name}</CardTitle>
+                  <CardDescription className="text-sm">{queue.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-sm text-muted-foreground">
+                    <p>Chats Ativos: <span className="font-semibold text-foreground">{stats.activeChats}</span></p>
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 mr-2 text-primary" />
+                      Agentes Humanos: <span className="font-semibold text-foreground ml-1">{stats.humanAgents}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Bot className="h-4 w-4 mr-2 text-primary" />
+                      Agentes IA: <span className="font-semibold text-foreground ml-1">{stats.aiAgents}</span>
+                    </div>
+                  </div>
+                  <Button asChild className="w-full bg-primary hover:bg-primary/90">
+                    <Link href={`/queues/${queue.id}`}>
+                      Ver Kanban da Fila <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
     </div>
   );
