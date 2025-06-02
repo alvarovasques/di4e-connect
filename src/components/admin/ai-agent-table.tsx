@@ -1,7 +1,8 @@
 
 'use client';
 
-import type { User } from '@/types';
+import type { User, AiModel } from '@/types';
+import { MOCK_AI_MODELS } from '@/lib/mock-data'; // Import MOCK_AI_MODELS
 import {
   Table,
   TableBody,
@@ -26,7 +27,7 @@ import AiAgentFormDialog, { type AiAgentFormData } from './ai-agent-form-dialog'
 import { useToast } from '@/hooks/use-toast';
 
 type AiAgentTableProps = {
-  agents: User[]; // Expects a list of users, will filter for AGENT_AI
+  agents: User[]; 
 };
 
 const AiAgentTable = ({ agents: initialAgents }: AiAgentTableProps) => {
@@ -35,10 +36,22 @@ const AiAgentTable = ({ agents: initialAgents }: AiAgentTableProps) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<User | null>(null);
   const { toast } = useToast();
+  
+  // State for available AI models, initialized from MOCK_AI_MODELS
+  // This could be fetched or managed globally in a real app. For now, using mock.
+  const [availableModels, setAvailableModels] = useState<AiModel[]>(MOCK_AI_MODELS);
 
   useEffect(() => {
     setAgents(initialAgents.filter(u => u.userType === 'AGENT_AI'));
   }, [initialAgents]);
+
+  // If MOCK_AI_MODELS can change (e.g., via AiModelTable), you might want an effect to update availableModels
+  // For this prototype, assuming MOCK_AI_MODELS passed to AiModelTable is the source of truth
+  // and this component just reads from it.
+  useEffect(() => {
+    setAvailableModels(MOCK_AI_MODELS);
+  }, [MOCK_AI_MODELS]);
+
 
   const filteredAgents = agents.filter(agent => 
     agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -63,8 +76,6 @@ const AiAgentTable = ({ agents: initialAgents }: AiAgentTableProps) => {
     const agentToDelete = agents.find(a => a.id === agentId);
     if(confirm(`Tem certeza que deseja excluir o Agente IA ${agentToDelete?.name}?`)) {
       setAgents(prevAgents => prevAgents.filter(a => a.id !== agentId));
-      // Note: This only updates client-side state. Real deletion would need backend.
-      // And potentially update MOCK_USERS if that's the source of truth.
       toast({
         title: "Agente IA Excluído",
         description: `O Agente IA ${agentToDelete?.name} foi excluído com sucesso.`,
@@ -74,7 +85,6 @@ const AiAgentTable = ({ agents: initialAgents }: AiAgentTableProps) => {
   };
   
   const handleFormSubmit = (data: AiAgentFormData) => {
-    // Cast AiAgentFormData to User for consistency with MOCK_USERS and Chat assignment
     const submittedAgent = data as User;
 
     if (editingAgent && editingAgent.id) {
@@ -100,7 +110,6 @@ const AiAgentTable = ({ agents: initialAgents }: AiAgentTableProps) => {
     }
     setIsFormOpen(false);
     setEditingAgent(null);
-    // TODO: Persist changes to MOCK_USERS or backend if this table should affect the global list
   };
 
   return (
@@ -186,6 +195,7 @@ const AiAgentTable = ({ agents: initialAgents }: AiAgentTableProps) => {
         onOpenChange={setIsFormOpen}
         onSubmit={handleFormSubmit}
         initialData={editingAgent}
+        availableModels={availableModels} 
       />
     </>
   );
