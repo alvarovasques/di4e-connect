@@ -69,7 +69,7 @@ export default function OraclePage() {
     setMessages(prev => [...prev, userMessage]);
     setUserInput('');
     setIsLoading(true);
-    setDynamicPromptSuggestions([]); // Limpa sugestões antigas
+    setDynamicPromptSuggestions([]); 
 
     try {
       const inputForFlow: OracleQueryInput = { userInput: currentInput };
@@ -208,20 +208,24 @@ export default function OraclePage() {
             </CardTitle>
             <CardDescription>Clique para enviar ou use como inspiração.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {currentPromptSuggestions.map((prompt, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-left h-auto py-1.5"
-                onClick={() => handleSuggestionClick(prompt)}
-                disabled={isLoading}
-              >
-                <CornerDownLeft className="mr-2 h-3 w-3" />
-                {prompt}
-              </Button>
-            ))}
+          <CardContent>
+            <ScrollArea className="max-h-60"> {/* Altura máxima para rolagem */}
+              <div className="space-y-2">
+                {currentPromptSuggestions.map((prompt, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start text-left h-auto py-1.5"
+                    onClick={() => handleSuggestionClick(prompt)}
+                    disabled={isLoading}
+                  >
+                    <CornerDownLeft className="mr-2 h-3 w-3" />
+                    {prompt}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
         <Card>
@@ -232,19 +236,23 @@ export default function OraclePage() {
             </CardTitle>
             <CardDescription>O Oráculo utiliza estes e outros documentos.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {sampleKbItems.length > 0 ? (
-                sampleKbItems.map(item => (
-                    <div key={item.id} className="p-2 border rounded-md bg-background/50 text-xs">
-                        <p className="font-semibold truncate" title={item.name}>{item.name}</p>
-                        <p className="text-muted-foreground line-clamp-2" title={item.summary || item.content}>
-                            {item.summary || item.content?.substring(0,100) + "..."}
-                        </p>
-                    </div>
-                ))
-            ) : (
-                <p className="text-muted-foreground">Nenhum exemplo da Base de Conhecimento para mostrar.</p>
-            )}
+          <CardContent className="text-sm">
+            <ScrollArea className="max-h-60"> {/* Altura máxima para rolagem */}
+              <div className="space-y-2">
+                {sampleKbItems.length > 0 ? (
+                    sampleKbItems.map(item => (
+                        <div key={item.id} className="p-2 border rounded-md bg-background/50 text-xs">
+                            <p className="font-semibold truncate" title={item.name}>{item.name}</p>
+                            <p className="text-muted-foreground line-clamp-2" title={item.summary || item.content}>
+                                {item.summary || item.content?.substring(0,100) + "..."}
+                            </p>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-muted-foreground">Nenhum exemplo da Base de Conhecimento para mostrar.</p>
+                )}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       </aside>
