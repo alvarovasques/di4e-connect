@@ -64,7 +64,7 @@ const QueueCard = ({ queue, chatsInQueue }: { queue: Queue; chatsInQueue: Chat[]
                 <Badge 
                   variant={chat.status === 'IN_PROGRESS' ? 'default' : chat.status === 'WAITING' ? 'secondary' : 'outline'}
                   className={cn(
-                    chat.priority === 'HIGH' && 'border-destructive text-accent', // Alterado aqui
+                    chat.priority === 'HIGH' && 'bg-accent text-accent-foreground',
                     chat.priority === 'URGENT' && 'bg-destructive text-destructive-foreground'
                   )}
                 >
