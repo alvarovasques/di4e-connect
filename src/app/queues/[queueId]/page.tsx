@@ -20,7 +20,6 @@ const KANBAN_COLUMNS: { title: string; status: ChatStatusColumn[] }[] = [
   { title: 'Aguardando', status: ['WAITING'] },
   { title: 'Em Progresso', status: ['IN_PROGRESS'] },
   { title: 'Transferido', status: ['TRANSFERRED'] },
-  // Futuramente: { title: 'Pausado', status: ['PAUSED'] },
 ];
 
 
@@ -54,7 +53,7 @@ const ChatCard = ({ chat }: { chat: Chat }) => {
   }
 
   return (
-    <Card className="p-3 bg-card/80 hover:shadow-lg transition-shadow mb-3">
+    <Card className="p-3 bg-card hover:shadow-lg transition-shadow mb-3">
       <div className="flex justify-between items-start mb-1">
         <h4 className="font-semibold text-sm text-foreground">{chat.customerName}</h4>
         <Badge 
@@ -92,6 +91,9 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
   const { toast } = useToast();
   const { queueId } = params;
 
+  // Simulating fetching queues and finding the current one. In a real app, this would be dynamic.
+  const [allQueues, setAllQueues] = useState<Queue[]>(MOCK_QUEUES);
+
   const currentUserRole = MOCK_ROLES.find(role => role.id === MOCK_CURRENT_USER.roleId);
   const currentUserPermissions = useMemo(() => new Set(currentUserRole?.permissions || []), [currentUserRole]);
 
@@ -99,7 +101,7 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
     return currentUserPermissions.has('access_queues_module');
   }, [currentUserPermissions]);
 
-  const currentQueue = useMemo(() => MOCK_QUEUES.find(q => q.id === queueId), [queueId]);
+  const currentQueue = useMemo(() => allQueues.find(q => q.id === queueId), [queueId, allQueues]);
 
   const chatsForCurrentQueue = useMemo(() => {
     return MOCK_CHATS.filter(chat => chat.queueId === queueId && (chat.status === 'IN_PROGRESS' || chat.status === 'WAITING' || chat.status === 'TRANSFERRED'));
@@ -159,14 +161,14 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
             <p className="text-muted-foreground">Nenhum chat ativo nesta fila para exibir no Kanban.</p>
           </div>
       ) : (
-        <ScrollArea className="flex-grow whitespace-nowrap rounded-md border p-4">
+        <ScrollArea className="flex-grow whitespace-nowrap rounded-md border p-4 bg-muted/20">
           <div className="flex gap-4 pb-4 h-full">
             {KANBAN_COLUMNS.map(column => {
               const chatsInColumn = chatsForCurrentQueue.filter(chat => column.status.includes(chat.status as ChatStatusColumn));
               return (
-                <div key={column.title} className="w-80 min-w-80 flex-shrink-0 bg-muted/50 rounded-lg p-3">
-                  <h3 className="font-semibold text-foreground mb-3 px-1">{column.title} ({chatsInColumn.length})</h3>
-                  <ScrollArea className="h-[calc(100vh-18rem)] pr-2"> {/* Ajustar altura conforme necessidade */}
+                <div key={column.title} className="w-80 min-w-[300px] max-w-sm flex-shrink-0 bg-background rounded-lg shadow-md p-3 flex flex-col">
+                  <h3 className="font-semibold text-foreground mb-3 px-1 text-lg sticky top-0 bg-background py-2 z-10">{column.title} ({chatsInColumn.length})</h3>
+                  <ScrollArea className="flex-grow h-[calc(100vh-22rem)] pr-2"> {/* Ajustar altura conforme necessidade */}
                     {chatsInColumn.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">Nenhum chat aqui.</p>
                     ) : (
