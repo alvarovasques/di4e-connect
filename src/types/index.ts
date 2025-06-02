@@ -8,6 +8,8 @@ export type User = {
   llmPrompt?: string; // Prompt do sistema para agentes IA
   aiModelName?: string; // Nome do modelo de IA (ex: gemini-pro)
   roleId?: string; // Adicionado para vincular usuário a um cargo
+  teamId?: string; // Para simular pertencimento a uma equipe para KB
+  assignedQueueIds?: string[]; // Para simular filas que o usuário/agente atende para KB
 };
 
 export type Message = {
@@ -53,14 +55,54 @@ export type Queue = {
   isActive: boolean;
 };
 
+// Tipos para a Base de Conhecimento (KB)
+export type KBModelType = 'personal' | 'team' | 'queue' | 'general';
+export type KBItemType = 'folder' | 'file';
+export type KBGeneralAccess = 'owner_only' | 'internal_users' | 'restricted' | 'public_to_model';
+
+export interface KBItem {
+  id: string;
+  name: string;
+  type: KBItemType;
+  modelType: KBModelType;
+  ownerId: string;
+  author?: string;
+  teamId?: string;
+  queueId?: string; // Para vincular a uma fila específica se for do modelType 'queue'
+  parentId?: string | null;
+  linkedFolderIds?: string[];
+  
+  mimeType?: string;
+  content?: string; // Para artigos/markdown
+  fileUrl?: string; // Para binários
+  size?: number; // em bytes
+  version?: number;
+  summary?: string;
+  
+  accessSettings: { // Simplificado para este protótipo; em um sistema real, seria mais granular
+    general: KBGeneralAccess; // Ex: 'owner_only', 'team_only', 'queue_only', 'organization', 'public_within_model_type'
+    // Para 'restricted', podemos ter listas específicas, mas vamos manter simples por agora.
+    // sharedWithUsers?: string[]; 
+    // sharedWithTeams?: string[];
+    // sharedWithQueues?: string[];
+  };
+
+  tags?: string[];
+  createdAt: string; // ISO Date string
+  lastUpdatedAt: string; // ISO Date string
+  lastUpdatedBy?: string; // User ID
+}
+
+// Mantendo KnowledgeBaseArticle para compatibilidade com o fluxo de Genkit, mas KBItem será o principal para a UI
 export type KnowledgeBaseArticle = {
   id: string;
   title: string;
   content: string;
-  summary?: string; // Short summary for display
-  relevanceScore?: number; // For suggested articles
+  summary?: string;
+  relevanceScore?: number;
   tags?: string[];
 };
+
 
 export type WhisperNote = {
   id: string;
@@ -93,7 +135,6 @@ export type AiInsight = {
   createdAt: Date;
 };
 
-// Definindo explicitamente o tipo para IDs de permissão
 export const ALL_PERMISSIONS = [
   { id: 'manage_users', label: 'Gerenciar Usuários (Humanos)' },
   { id: 'manage_roles', label: 'Gerenciar Cargos e Permissões' },
@@ -104,17 +145,32 @@ export const ALL_PERMISSIONS = [
   { id: 'manage_queues', label: 'Gerenciar Filas de Atendimento' },
   { id: 'handle_chats_human', label: 'Atender Chats (Agente Humano)' },
   { id: 'handle_chats_ai', label: 'Atender Chats (Agente IA)' },
-  { id: 'view_knowledge_base', label: 'Visualizar Base de Conhecimento' },
-  { id: 'manage_knowledge_base', label: 'Gerenciar Base de Conhecimento' },
-  { id: 'supervisor_whisper_chat', label: 'Sussurrar em Chats (Supervisor)' },
-  { id: 'supervisor_view_all_chats', label: 'Visualizar Todos os Chats (Supervisor)' },
+  
   { id: 'access_admin_section', label: 'Acessar Seção de Administração' },
   { id: 'access_dashboard', label: 'Acessar Painel Principal' },
   { id: 'access_chat_module', label: 'Acessar Módulo de Chat' },
   { id: 'access_queues_module', label: 'Acessar Módulo de Filas' },
-  { id: 'access_kb_module', label: 'Acessar Módulo da Base de Conhecimento' },
+  { id: 'access_kb_module', label: 'Acessar Módulo da Base de Conhecimento' }, // Permissão genérica para o módulo
   { id: 'access_reports_module', label: 'Acessar Módulo de Relatórios' },
   { id: 'access_support_page', label: 'Acessar Página de Suporte' },
+  
+  // Permissões específicas da Base de Conhecimento (KB)
+  { id: 'kb_view_personal', label: 'KB: Ver Documentos Pessoais' },
+  { id: 'kb_manage_personal', label: 'KB: Gerenciar Documentos Pessoais' },
+  { id: 'kb_view_team_all', label: 'KB: Ver Todos Documentos de Equipe' }, // Supervisor/Admin
+  { id: 'kb_view_team_own', label: 'KB: Ver Documentos da Própria Equipe' }, // Membro da equipe
+  { id: 'kb_manage_team_all', label: 'KB: Gerenciar Todos Documentos de Equipe' },
+  { id: 'kb_manage_team_own', label: 'KB: Gerenciar Documentos da Própria Equipe' },
+  { id: 'kb_view_queue_all', label: 'KB: Ver Todos Documentos de Fila' }, // Supervisor/Admin
+  { id: 'kb_view_queue_assigned', label: 'KB: Ver Documentos das Filas Atribuídas' }, // Agente
+  { id: 'kb_manage_queue_all', label: 'KB: Gerenciar Todos Documentos de Fila' },
+  { id: 'kb_manage_queue_assigned', label: 'KB: Gerenciar Documentos das Filas Atribuídas' },
+  { id: 'kb_view_general', label: 'KB: Ver Documentos Gerais' },
+  { id: 'kb_manage_general', label: 'KB: Gerenciar Documentos Gerais' },
+  { id: 'kb_create_item', label: 'KB: Criar Novos Itens/Pastas' }, // Permissão para o botão "Novo Item"
+
+  { id: 'supervisor_whisper_chat', label: 'Sussurrar em Chats (Supervisor)' },
+  { id: 'supervisor_view_all_chats', label: 'Visualizar Todos os Chats (Supervisor)' },
 ] as const;
 
 export type PermissionId = typeof ALL_PERMISSIONS[number]['id'];
@@ -128,8 +184,8 @@ export type Role = {
 
 export type AiModel = {
   id: string;
-  name: string; // e.g., "gemini-1.5-flash", "googleai/gemini-2.0-flash-exp"
-  token: string; // API Key - handle with extreme care in a real app
-  provider: string; // e.g., "Google AI", "OpenAI"
+  name: string;
+  token: string;
+  provider: string;
   description?: string;
 };

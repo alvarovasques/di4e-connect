@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import type { Chat, Message, User, KnowledgeBaseArticle, WhisperNote, Queue } from '@/types';
-import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ARTICLES, MOCK_WHISPER_NOTES, MOCK_CURRENT_USER } from '@/lib/mock-data';
+import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ARTICLES_FOR_GENKIT, MOCK_WHISPER_NOTES, MOCK_CURRENT_USER } from '@/lib/mock-data';
 import MessageBubble from './message-bubble';
 import MessageInputArea from './message-input-area';
 import WhisperNoteInput from './whisper-note-input';
@@ -70,10 +70,10 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       
       const kbSuggestions = await suggestKnowledgeBaseArticles({
         chatContent,
-        knowledgeBaseArticles: MOCK_KB_ARTICLES,
+        knowledgeBaseArticles: MOCK_KB_ARTICLES_FOR_GENKIT,
       });
       setSuggestedArticles(kbSuggestions.map(s => ({
-        ...MOCK_KB_ARTICLES.find(kb => kb.id === s.id)!,
+        ...MOCK_KB_ARTICLES_FOR_GENKIT.find(kb => kb.id === s.id)!,
         relevanceScore: s.relevanceScore,
       })).slice(0, 3)); 
 
@@ -276,3 +276,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 };
 
 export default ActiveChatArea;
+
+
+    
