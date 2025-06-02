@@ -1,8 +1,5 @@
 
 // src/lib/mock-data-definitions.ts
-// Este arquivo agora contém apenas as definições dos mocks e a lógica de MOCK_CURRENT_USER.
-// O estado mutável será gerenciado em server-memory-store.ts.
-
 import type { User, Chat, Message, Queue, KnowledgeBaseArticle, KBItem, WhisperNote, Metric, PerformanceData, AiInsight, Role, AiModel, PermissionId, KBModelType, ChatStatusColumn, KanbanColumnConfig } from '@/types';
 import { ALL_PERMISSIONS } from '@/types'; 
 
@@ -29,47 +26,52 @@ export const MOCK_USERS_DEFINITIONS: User[] = [
     userType: 'AGENT_AI',
     avatarUrl: 'https://placehold.co/100x100/FADBD8/white?text=IV',
     llmPrompt: 'Você é um especialista em vendas da IntelliContato. Seu objetivo é entender as necessidades do cliente e guiá-lo para a melhor solução de nossos produtos.',
-    aiModelName: 'gemini-1.5-flash', // Certifique-se que este modelo está em MOCK_AI_MODELS
+    aiModelName: 'gemini-1.5-flash', 
     roleId: 'role_agent_ai',
     assignedQueueIds: ['queue_1']
   },
 ];
 
-// Re-exportar MOCK_USERS como MOCK_USERS para manter a compatibilidade onde ainda é usado para inicialização.
 export const MOCK_USERS: User[] = MOCK_USERS_DEFINITIONS;
 
+export const DEFAULT_USER_FOR_MOCK: User = MOCK_USERS_DEFINITIONS.find(u => u.userType === 'ADMIN')!;
 
-let currentUserForExport: User;
-const defaultUserForMock = MOCK_USERS_DEFINITIONS.find(u => u.id === 'user_4')!; // Admin Carlos Brown
+// This user is for SSR and the initial client render state, ensuring consistency.
+export const MOCK_CURRENT_USER_FOR_INITIAL_RENDER: User = DEFAULT_USER_FOR_MOCK;
 
-if (typeof window !== 'undefined') {
-  const simulatedUserType = localStorage.getItem('simulatedUserType');
-  if (simulatedUserType === 'AGENT_HUMAN') {
-    currentUserForExport = MOCK_USERS_DEFINITIONS.find(u => u.id === 'user_1')!; // Alice
-  } else if (simulatedUserType === 'SUPERVISOR') {
-    currentUserForExport = MOCK_USERS_DEFINITIONS.find(u => u.id === 'user_2')!; // Roberto
-  } else if (simulatedUserType === 'ADMIN') {
-    currentUserForExport = MOCK_USERS_DEFINITIONS.find(u => u.id === 'user_4')!; // Carlos
+export function getClientSideCurrentUser(): User {
+  if (typeof window !== 'undefined') {
+    const simulatedUserType = localStorage.getItem('simulatedUserType');
+    const agentUser = MOCK_USERS_DEFINITIONS.find(u => u.userType === 'AGENT_HUMAN');
+    const supervisorUser = MOCK_USERS_DEFINITIONS.find(u => u.userType === 'SUPERVISOR');
+    const adminUser = MOCK_USERS_DEFINITIONS.find(u => u.userType === 'ADMIN');
+
+    if (simulatedUserType === 'AGENT_HUMAN' && agentUser) {
+      return agentUser;
+    } else if (simulatedUserType === 'SUPERVISOR' && supervisorUser) {
+      return supervisorUser;
+    } else if (simulatedUserType === 'ADMIN' && adminUser) {
+      return adminUser;
+    }
+    // Fallback if localStorage not set or invalid, set it to default.
+    // This ensures that even if localStorage is weird, we default consistently.
+    localStorage.setItem('simulatedUserType', DEFAULT_USER_FOR_MOCK.userType);
+    return DEFAULT_USER_FOR_MOCK;
   }
-  else {
-    currentUserForExport = defaultUserForMock;
-    localStorage.setItem('simulatedUserType', defaultUserForMock.userType);
-  }
-} else {
-  currentUserForExport = defaultUserForMock;
+  // This case should ideally not be hit if getClientSideCurrentUser is only called in useEffect.
+  return DEFAULT_USER_FOR_MOCK; 
 }
-
-export let MOCK_CURRENT_USER: User = currentUserForExport;
 
 export const setSimulatedUserType = (userType: 'AGENT_HUMAN' | 'SUPERVISOR' | 'ADMIN') => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('simulatedUserType', userType);
-    // Atualizar MOCK_CURRENT_USER dinamicamente para o cliente sem recarregar, se possível,
-    // ou indicar que um recarregamento é necessário para que o server-memory-store use o novo usuário.
-    // Por simplicidade do protótipo, vamos manter o recarregamento por enquanto.
     window.location.reload(); 
   }
 };
+
+// Legacy MOCK_CURRENT_USER for any direct non-component imports, now always the default.
+// Components should use the state managed by useState and useEffect.
+export const MOCK_CURRENT_USER: User = DEFAULT_USER_FOR_MOCK;
 
 
 const generateMessages = (chatId: string, count: number, customerName: string): Message[] => {
@@ -79,14 +81,14 @@ const generateMessages = (chatId: string, count: number, customerName: string): 
   for (let i = 0; i < count; i++) {
     const senderType = senders[i % 2];
     messages.push({
-      id: `msg_${chatId}_${i}_${Date.now()}_${Math.random().toString(36).substring(2,5)}`, // more unique ID
+      id: `msg_${chatId}_${i}_${Date.now()}_${Math.random().toString(36).substring(2,5)}`,
       chatId,
       content: `Esta é a mensagem ${i + 1} para ${customerName}. ${'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(Math.random() * 2 + 1)}`,
       type: 'text',
       sender: senderType,
       senderId: senderType === 'agent' ? agent.id : `cust_${chatId.split('_')[1]}`,
       senderName: senderType === 'agent' ? agent.name : customerName,
-      timestamp: new Date(Date.now() - (count - i) * 60000 * (Math.random() * 5 + 1)), // varied time
+      timestamp: new Date(Date.now() - (count - i) * 60000 * (Math.random() * 5 + 1)),
       isFromCustomer: senderType === 'customer',
       sentimentScore: senderType === 'customer' ? (Math.random() * 2 - 1) : undefined,
     });
@@ -252,9 +254,9 @@ export const MOCK_AI_MODELS: AiModel[] = [
   },
 ];
 
-// Demais mocks (MOCK_WHISPER_NOTES, MOCK_METRICS, etc.) podem permanecer aqui para referência,
-// mas não serão diretamente gerenciados pelo server-memory-store inicialmente.
 export const MOCK_WHISPER_NOTES: WhisperNote[] = [ /* ... */ ];
 export const MOCK_METRICS: Metric[] = [ /* ... */ ];
 export const MOCK_PERFORMANCE_DATA: PerformanceData = [ /* ... */ ];
 export const MOCK_AI_INSIGHTS: AiInsight[] = [ /* ... */ ];
+
+    

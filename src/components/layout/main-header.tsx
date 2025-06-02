@@ -11,34 +11,24 @@ import AppLogo from '@/components/icons/app-logo';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_ITEMS } from '@/lib/constants';
-// Import MOCK_USERS to determine client-side user and INITIAL_MOCK_CURRENT_USER
-import { MOCK_CURRENT_USER as INITIAL_MOCK_CURRENT_USER, setSimulatedUserType, MOCK_USERS } from '@/lib/mock-data';
+import { 
+  MOCK_CURRENT_USER_FOR_INITIAL_RENDER, 
+  getClientSideCurrentUser, 
+  setSimulatedUserType, 
+  MOCK_USERS 
+} from '@/lib/mock-data';
 import type { User } from '@/types';
 import { useState, useEffect } from 'react';
 
 const MainHeader = () => {
-  const [currentUser, setCurrentUser] = useState<User>(INITIAL_MOCK_CURRENT_USER);
+  const [currentUser, setCurrentUser] = useState<User>(MOCK_CURRENT_USER_FOR_INITIAL_RENDER);
   const [isClient, setIsClient] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     setIsClient(true);
-    // Determine the actual MOCK_CURRENT_USER on the client side based on localStorage
-    const simulatedUserType = localStorage.getItem('simulatedUserType');
-    let clientDeterminedUser = INITIAL_MOCK_CURRENT_USER; // Default to initial
-
-    const adminUser = MOCK_USERS.find(u => u.userType === 'ADMIN');
-    const supervisorUser = MOCK_USERS.find(u => u.userType === 'SUPERVISOR');
-    const agentUser = MOCK_USERS.find(u => u.userType === 'AGENT_HUMAN');
-
-    if (simulatedUserType === 'AGENT_HUMAN' && agentUser) {
-      clientDeterminedUser = agentUser;
-    } else if (simulatedUserType === 'SUPERVISOR' && supervisorUser) {
-      clientDeterminedUser = supervisorUser;
-    } else if (simulatedUserType === 'ADMIN' && adminUser) {
-      clientDeterminedUser = adminUser;
-    }
-    setCurrentUser(clientDeterminedUser);
+    const clientUser = getClientSideCurrentUser();
+    setCurrentUser(clientUser);
   }, []);
 
   const getCurrentPageLabel = () => {
@@ -64,33 +54,42 @@ const MainHeader = () => {
   };
 
   const handleToggleUser = () => {
-    // setSimulatedUserType already reloads the page
     if (currentUser.userType === 'SUPERVISOR') {
       setSimulatedUserType('AGENT_HUMAN');
     } else if (currentUser.userType === 'AGENT_HUMAN') {
       setSimulatedUserType('ADMIN');
-    } else { // ADMIN or other
+    } else { 
       setSimulatedUserType('SUPERVISOR');
     }
   };
 
-  const agentUser = MOCK_USERS.find(u => u.id === 'user_1');
-  const supervisorUser = MOCK_USERS.find(u => u.id === 'user_2');
-  const adminUser = MOCK_USERS.find(u => u.id === 'user_4');
+  const agentUser = MOCK_USERS.find(u => u.userType === 'AGENT_HUMAN');
+  const supervisorUser = MOCK_USERS.find(u => u.userType === 'SUPERVISOR');
+  const adminUser = MOCK_USERS.find(u => u.userType === 'ADMIN');
 
   let toggleButtonText = "";
-  if (currentUser.userType === 'SUPERVISOR' && agentUser) {
-    toggleButtonText = `Agente (${agentUser.name.split(' ')[0]})`;
-  } else if (currentUser.userType === 'AGENT_HUMAN' && adminUser) {
-    toggleButtonText = `Admin (${adminUser.name.split(' ')[0]})`;
-  } else if (currentUser.userType === 'ADMIN' && supervisorUser){
-    toggleButtonText = `Superv. (${supervisorUser.name.split(' ')[0]})`;
-  } else { // Fallback
-     toggleButtonText = supervisorUser ? `Superv. (${supervisorUser.name.split(' ')[0]})` : "Alternar";
+  if (isClient) { // Only determine toggle button text once client-side user is known
+    if (currentUser.userType === 'SUPERVISOR' && agentUser) {
+      toggleButtonText = `Agente (${agentUser.name.split(' ')[0]})`;
+    } else if (currentUser.userType === 'AGENT_HUMAN' && adminUser) {
+      toggleButtonText = `Admin (${adminUser.name.split(' ')[0]})`;
+    } else if (currentUser.userType === 'ADMIN' && supervisorUser){
+      toggleButtonText = `Superv. (${supervisorUser.name.split(' ')[0]})`;
+    } else { 
+       toggleButtonText = supervisorUser ? `Superv. (${supervisorUser.name.split(' ')[0]})` : "Alternar";
+    }
+  } else {
+    // SSR/Initial client render before useEffect
+    if (MOCK_CURRENT_USER_FOR_INITIAL_RENDER.userType === 'SUPERVISOR' && agentUser) {
+      toggleButtonText = `Agente (${agentUser.name.split(' ')[0]})`;
+    } else if (MOCK_CURRENT_USER_FOR_INITIAL_RENDER.userType === 'AGENT_HUMAN' && adminUser) {
+      toggleButtonText = `Admin (${adminUser.name.split(' ')[0]})`;
+    } else { // ADMIN or other
+      toggleButtonText = supervisorUser ? `Superv. (${supervisorUser.name.split(' ')[0]})` : "Alternar";
+    }
   }
 
-  // Use INITIAL_MOCK_CURRENT_USER for SSR and initial client render for elements that might mismatch
-  const displayedCurrentUser = isClient ? currentUser : INITIAL_MOCK_CURRENT_USER;
+  const displayedCurrentUser = isClient ? currentUser : MOCK_CURRENT_USER_FOR_INITIAL_RENDER;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 px-4 shadow-sm backdrop-blur-sm md:px-6">
@@ -128,7 +127,7 @@ const MainHeader = () => {
         <Button onClick={handleToggleUser} variant="outline" size="sm" className="text-xs sm:text-sm" title={`Logado como: ${displayedCurrentUser.name} (${displayedCurrentUser.userType})`}>
           <Users2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
           <span className="hidden sm:inline">Alternar para: </span>
-           {toggleButtonText}
+           {toggleButtonText || "Alternar"}
         </Button>
 
         <Button variant="ghost" size="icon" className="rounded-full">
@@ -149,3 +148,5 @@ const MainHeader = () => {
 };
 
 export default MainHeader;
+
+    

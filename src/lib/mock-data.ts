@@ -4,7 +4,12 @@
 // e as definições de mock para inicialização do store.
 
 // Exportar MOCK_CURRENT_USER e setSimulatedUserType da lógica de simulação de usuário
-export { MOCK_CURRENT_USER, setSimulatedUserType } from '@/lib/mock-data-definitions';
+export { 
+  MOCK_CURRENT_USER_FOR_INITIAL_RENDER, 
+  getClientSideCurrentUser, 
+  setSimulatedUserType,
+  MOCK_CURRENT_USER // Still exporting the original MOCK_CURRENT_USER for places that might use it directly (e.g. server-memory-store for its own MOCK_CURRENT_USER)
+} from '@/lib/mock-data-definitions';
 
 // Exportar as definições originais dos mocks para que o server-memory-store possa usá-las para inicialização.
 // Estes não devem ser importados diretamente por componentes de frontend para dados dinâmicos.
@@ -26,3 +31,5 @@ export {
 // que, por sua vez, interagem com o server-memory-store.ts.
 // Este arquivo (mock-data.ts) pode ainda ser usado por componentes que precisam de uma lista estática
 // (ex: para popular um seletor com todos os MOCK_USERS disponíveis, embora isso também possa vir de uma Server Action).
+
+    
