@@ -9,19 +9,24 @@ let firestoreInstance: admin.firestore.Firestore | null = null;
 // Função para inicializar o Firebase Admin SDK
 // Garante que seja inicializado apenas uma vez (Singleton)
 function initializeFirebaseAdmin() {
-  if (admin.apps.length > 0) {
+  console.log("Attempting to initialize Firebase Admin SDK..."); // Log de tentativa
+
+  if (admin.apps.length > 0 && admin.app()) { // Verifica se já existe uma app e se ela é válida
     firebaseAdminApp = admin.app();
-    console.log("Firebase Admin SDK já estava inicializado.");
+    console.log("Firebase Admin SDK já estava inicializado (admin.apps.length > 0).");
   } else {
+    console.log("Firebase Admin SDK não estava inicializado (admin.apps.length === 0 ou app inválida). Procedendo com nova inicialização...");
     const serviceAccountJsonString = process.env.FIREBASE_SERVICE_ACCOUNT_JSON_STRING;
     let serviceAccount;
 
-    if (serviceAccountJsonString) {
+    if (serviceAccountJsonString && serviceAccountJsonString.trim() !== "") {
+      console.log("Encontrado FIREBASE_SERVICE_ACCOUNT_JSON_STRING. Tentando parsear...");
       try {
         serviceAccount = JSON.parse(serviceAccountJsonString);
+        console.log("FIREBASE_SERVICE_ACCOUNT_JSON_STRING parseado com sucesso.");
       } catch (error) {
-        console.error("Erro ao parsear FIREBASE_SERVICE_ACCOUNT_JSON_STRING:", error);
-        console.warn("Firebase Admin SDK não pôde ser inicializado devido a erro no JSON da conta de serviço.");
+        console.error("Erro CRÍTICO ao parsear FIREBASE_SERVICE_ACCOUNT_JSON_STRING:", error);
+        console.warn("Firebase Admin SDK NÃO pôde ser inicializado devido a erro no JSON da conta de serviço. Verifique o formato no .env.");
         return; // Sai da função se o JSON for inválido
       }
     } else if (
@@ -29,6 +34,7 @@ function initializeFirebaseAdmin() {
       process.env.FIREBASE_CLIENT_EMAIL &&
       process.env.FIREBASE_PRIVATE_KEY
     ) {
+      console.log("Usando variáveis de ambiente separadas para Firebase Admin SDK.");
       serviceAccount = {
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
@@ -46,25 +52,29 @@ function initializeFirebaseAdmin() {
     try {
       firebaseAdminApp = admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-      });
-      console.log("Firebase Admin SDK inicializado com sucesso!");
+      }, 'Di4E-Connect-Admin'); // Dando um nome único para a instância do app
+      console.log("Firebase Admin SDK inicializado com sucesso com o nome 'Di4E-Connect-Admin'!");
     } catch (error: any) {
-        if (error.code === 'app/duplicate-app') {
-          firebaseAdminApp = admin.app();
-          console.log("Firebase Admin SDK já estava inicializado (capturado no catch).");
+        // Verificar se o app já foi inicializado com este nome específico
+        if (error.code === 'app/duplicate-app' && error.message.includes("'Di4E-Connect-Admin'")) {
+          firebaseAdminApp = admin.app('Di4E-Connect-Admin');
+          console.log("Firebase Admin SDK 'Di4E-Connect-Admin' já estava inicializado (capturado no catch).");
+        } else if (admin.apps.length > 0 && admin.app()) { // Fallback para app padrão se a nomeada falhar e uma padrão existir
+            firebaseAdminApp = admin.app();
+            console.log("Firebase Admin SDK já estava inicializado (app padrão recuperada no catch).");
         } else {
-          console.error('Erro ao inicializar Firebase Admin SDK:', error);
+          console.error('Erro CRÍTICO ao inicializar Firebase Admin SDK:', error);
           firebaseAdminApp = null; // Garante que app seja null em caso de outro erro
         }
     }
   }
 
   if (firebaseAdminApp) {
-    firestoreInstance = admin.firestore();
-    // authInstance = admin.auth();
+    firestoreInstance = admin.firestore(firebaseAdminApp); // Usar a app específica
+    console.log("Instância do Firestore obtida com sucesso.");
   } else {
     firestoreInstance = null;
-    // authInstance = null;
+    console.warn("Instância do Firestore NÃO pôde ser obtida pois o Firebase Admin App não foi inicializado corretamente.");
   }
 }
 
@@ -74,7 +84,4 @@ if (typeof window === 'undefined') {
 }
 
 // Exportar instâncias inicializadas (ou null se a inicialização falhar)
-// Isso permite que o aplicativo continue funcionando (pelo menos as partes que não dependem do Firebase)
-// se houver um problema de configuração, em vez de quebrar o build.
-export { firestoreInstance as firestore /*, authInstance as auth */, firebaseAdminApp };
-
+export { firestoreInstance as firestore, firebaseAdminApp };

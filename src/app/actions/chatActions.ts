@@ -13,6 +13,10 @@ import {
   getQueuesFromStore,
   // MOCK_CURRENT_USER // Não use MOCK_CURRENT_USER diretamente em Server Actions se depender do localStorage
 } from '@/lib/server-memory-store'; // Ajuste para importar do store
+import { firestore } from '@/lib/firebase-admin'; // Importar para forçar a inicialização do firebase-admin.ts
+
+// Log para verificar se o firestore foi inicializado (pode ser null se falhar)
+console.log('chatActions.ts: Firestore instance status on load:', firestore ? 'Available' : 'Not Available');
 
 
 export async function getChatsForUserServerAction(userId: string): Promise<Chat[]> {
