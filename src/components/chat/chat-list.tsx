@@ -1,6 +1,7 @@
 
 'use client';
 
+import React from 'react'; // Added React import
 import type { Chat, User } from '@/types';
 import ChatListItem from './chat-list-item';
 import { ScrollArea } from '@/components/ui/scroll-area';
