@@ -13,17 +13,15 @@ export const MOCK_USERS: User[] = [
     avatarUrl: 'https://placehold.co/100x100/A4B4E6/white?text=IA',
     llmPrompt: 'Você é um assistente de atendimento ao cliente amigável e eficiente. Responda às perguntas dos clientes de forma clara e concisa. Se não souber a resposta, diga que vai verificar e peça um momento.',
     aiModelName: 'gemini-1.5-flash',
-    roleId: 'role_agent_ai', // Agentes IA também podem ter cargos/permissões
-    assignedQueueIds: ['queue_1'] // IA pode ser associada a filas para acesso à KB
+    roleId: 'role_agent_ai', 
+    assignedQueueIds: ['queue_1'] 
   },
   { id: 'user_4', name: 'Carlos Brown', email: 'carlos@example.com', userType: 'ADMIN', avatarUrl: 'https://placehold.co/100x100/E6DCA4/white?text=CB', roleId: 'role_admin', teamId: 'team_devops' },
   { id: 'user_5', name: 'Viviane Lima', email: 'viviane@example.com', userType: 'VIEWER', avatarUrl: 'https://placehold.co/100x100/B4A4E6/white?text=VL', roleId: 'role_viewer' },
 ];
 
-export const MOCK_CURRENT_USER: User = MOCK_USERS[3]; // Carlos Brown (Admin)
-// export const MOCK_CURRENT_USER: User = MOCK_USERS[0]; // Alice Silva (Agente Humano)
-// export const MOCK_CURRENT_USER: User = MOCK_USERS[1]; // Roberto Johnson (Supervisor)
-// export const MOCK_CURRENT_USER: User = MOCK_USERS[2]; // Assistente IA Padrão
+export const MOCK_CURRENT_USER: User = MOCK_USERS[3]; 
+
 
 const generateMessages = (chatId: string, count: number): Message[] => {
   const messages: Message[] = [];
@@ -110,13 +108,6 @@ export const MOCK_QUEUES: Queue[] = [
   { id: 'queue_3', name: 'Faturamento', description: 'Lida com questões de faturamento', isActive: false },
 ];
 
-// Mantendo MOCK_KB_ARTICLES para Genkit, mas a UI usará MOCK_KB_ITEMS
-export const MOCK_KB_ARTICLES_FOR_GENKIT: KnowledgeBaseArticle[] = [
-  { id: 'kb_genkit_1', title: 'Como redefinir sua senha (Genkit)', content: 'Passos detalhados para redefinir sua senha...', summary: 'Guia de redefinição de senha', tags: ['senha', 'conta'] },
-  { id: 'kb_genkit_2', title: 'Entendendo sua fatura (Genkit)', content: 'Explicação dos ciclos de faturamento e cobranças...', summary: 'Informações de faturamento', tags: ['faturamento', 'fatura'] },
-  { id: 'kb_genkit_3', title: 'Solução de problemas de conexão (Genkit)', content: 'Passos para resolver problemas comuns de conexão...', summary: 'Solução de problemas de conexão', tags: ['técnico', 'conexão'] },
-];
-
 
 export const MOCK_KB_ITEMS: KBItem[] = [
   // ModelType: General
@@ -127,13 +118,13 @@ export const MOCK_KB_ITEMS: KBItem[] = [
   },
   {
     id: 'file_general_politica_reembolso', parentId: 'folder_general_1', name: 'Política de Reembolso.md', type: 'file', modelType: 'general', ownerId: 'system',
-    mimeType: 'text/markdown', content: '# Política de Reembolso\n\nDetalhes sobre nossa política de reembolso...', size: 1024,
+    mimeType: 'text/markdown', content: '# Política de Reembolso\n\nDetalhes sobre nossa política de reembolso...\n\nSe um cliente solicitar um reembolso, siga estes passos:\n1. Verifique a data da compra.\n2. Consulte os termos de serviço.\n3. Se elegível, processe o reembolso via sistema X.', size: 1024,
     createdAt: new Date(Date.now() - 86400000 * 9).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
-    accessSettings: { general: 'public_to_model' }, tags: ['reembolso', 'financeiro'], summary: 'Detalhes sobre a política de reembolso da empresa.'
+    accessSettings: { general: 'public_to_model' }, tags: ['reembolso', 'financeiro'], summary: 'Detalhes sobre a política de reembolso da empresa, incluindo o processo passo a passo.'
   },
   {
     id: 'file_general_codigo_conduta', parentId: 'folder_general_1', name: 'Código de Conduta.pdf', type: 'file', modelType: 'general', ownerId: 'system',
-    mimeType: 'application/pdf', fileUrl: '/docs/codigo_conduta.pdf', size: 512000,
+    mimeType: 'application/pdf', fileUrl: '/docs/codigo_conduta.pdf', size: 512000, content: 'Este é o conteúdo simulado do PDF do Código de Conduta. Ele descreve os padrões éticos e profissionais esperados de todos os funcionários.',
     createdAt: new Date(Date.now() - 86400000 * 8).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
     accessSettings: { general: 'public_to_model' }, tags: ['conduta', 'interno'], summary: 'Documento PDF com o código de conduta da empresa.'
   },
@@ -145,9 +136,9 @@ export const MOCK_KB_ITEMS: KBItem[] = [
   },
   {
     id: 'file_queue_vendas_script_produto_A', parentId: 'folder_queue_vendas_scripts', name: 'Script Produto A.txt', type: 'file', modelType: 'queue', queueId: 'queue_1', ownerId: MOCK_USERS[1].id,
-    mimeType: 'text/plain', content: 'Olá! Interesse no Produto A? Ele oferece X, Y, Z...', size: 500,
+    mimeType: 'text/plain', content: 'Olá! Interesse no Produto A? Ele oferece X, Y, Z como principais benefícios e pode resolver [problema do cliente]. Gostaria de saber mais?', size: 500,
     createdAt: new Date(Date.now() - 86400000 * 4).toISOString(), lastUpdatedAt: new Date().toISOString(),
-    accessSettings: { general: 'public_to_model' }, tags: ['produto a', 'script'], summary: 'Script de vendas para o Produto A.'
+    accessSettings: { general: 'public_to_model' }, tags: ['produto a', 'script'], summary: 'Script de vendas para o Produto A, focando nos benefícios e solução de problemas.'
   },
   // ModelType: Team (Suporte Geral - team_suporte_geral)
   {
@@ -157,7 +148,7 @@ export const MOCK_KB_ITEMS: KBItem[] = [
   },
   {
     id: 'file_team_suporte_escalonamento', parentId: 'folder_team_suporte_procedimentos', name: 'Procedimento de Escalonamento.docx', type: 'file', modelType: 'team', teamId: 'team_suporte_geral', ownerId: MOCK_USERS[1].id,
-    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', fileUrl: '/docs/escalonamento.docx', size: 120000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', fileUrl: '/docs/escalonamento.docx', size: 120000, content: 'Simulação de conteúdo do DOCX sobre escalonamento. Se um problema não puder ser resolvido em 15 minutos, encaminhe para o Supervisor Roberto Johnson.',
     createdAt: new Date(Date.now() - 86400000 * 6).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
     accessSettings: { general: 'public_to_model' }, tags: ['escalonamento', 'suporte'], summary: 'Documento Word com os passos para escalonamento de chamados.'
   },
@@ -169,16 +160,49 @@ export const MOCK_KB_ITEMS: KBItem[] = [
   },
   {
     id: 'file_personal_alice_notas_reuniao', parentId: 'folder_personal_alice_rascunhos', name: 'Notas da Reunião Cliente X.md', type: 'file', modelType: 'personal', ownerId: MOCK_USERS[0].id,
-    mimeType: 'text/markdown', content: '## Reunião Cliente X\n- Discutido A\n- Pendente B', size: 200,
+    mimeType: 'text/markdown', content: '## Reunião Cliente X\n- Discutido A sobre o problema de faturamento.\n- Pendente B: Verificar com o financeiro sobre a cobrança duplicada.\n- Cliente parecia satisfeito com a explicação inicial.', size: 200,
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), lastUpdatedAt: new Date().toISOString(),
-    accessSettings: { general: 'owner_only' }, tags: ['reunião', 'cliente x'], summary: 'Notas pessoais da reunião com o Cliente X.'
+    accessSettings: { general: 'owner_only' }, tags: ['reunião', 'cliente x'], summary: 'Notas pessoais da reunião com o Cliente X, focando em faturamento.'
   },
   // Item Geral sem pasta pai (root level)
   {
     id: 'file_general_faq_produtos', name: 'FAQ Geral de Produtos.pdf', type: 'file', modelType: 'general', ownerId: 'system', parentId: null,
-    mimeType: 'application/pdf', fileUrl: '/docs/faq_produtos.pdf', size: 204800,
+    mimeType: 'application/pdf', fileUrl: '/docs/faq_produtos.pdf', size: 204800, content: 'Conteúdo simulado do PDF de FAQ. Perguntas Frequentes: 1. Como faço para...? Resposta: ... 2. O produto Y é compatível com...? Resposta: ...',
     createdAt: new Date(Date.now() - 86400000 * 15).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
     accessSettings: { general: 'public_to_model' }, tags: ['faq', 'produtos'], summary: 'FAQ geral sobre os produtos da empresa.'
+  },
+  { 
+    id: 'kb_genkit_1_from_items', 
+    name: 'Como redefinir sua senha (ITEM)', // Nome do arquivo para consistência
+    type: 'file', modelType: 'general', ownerId: 'system', parentId: null,
+    mimeType: 'text/markdown', 
+    content: 'Para redefinir sua senha, acesse a página de login e clique em "Esqueci minha senha". Siga as instruções enviadas para o seu e-mail. Certifique-se de verificar sua pasta de spam.', 
+    summary: 'Guia passo a passo para o processo de redefinição de senha da conta de usuário.', 
+    tags: ['senha', 'conta', 'redefinição'],
+    createdAt: new Date(Date.now() - 86400000 * 20).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    accessSettings: { general: 'public_to_model' }
+  },
+  { 
+    id: 'kb_genkit_2_from_items', 
+    name: 'Entendendo sua fatura (ITEM)', 
+    type: 'file', modelType: 'general', ownerId: 'system', parentId: null,
+    mimeType: 'text/markdown', 
+    content: 'Sua fatura mensal detalha todos os serviços utilizados e suas respectivas cobranças. O ciclo de faturamento geralmente começa no dia 1 de cada mês. Para dúvidas, entre em contato com o suporte.', 
+    summary: 'Explicação dos componentes da fatura, ciclos de faturamento e como obter ajuda.', 
+    tags: ['faturamento', 'fatura', 'cobrança'],
+    createdAt: new Date(Date.now() - 86400000 * 18).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+    accessSettings: { general: 'public_to_model' }
+  },
+  { 
+    id: 'kb_genkit_3_from_items', 
+    name: 'Solução de problemas de conexão (ITEM)', 
+    type: 'file', modelType: 'general', ownerId: 'system', parentId: null,
+    mimeType: 'text/markdown', 
+    content: 'Se estiver com problemas de conexão, tente reiniciar seu modem e roteador. Verifique também se os cabos estão conectados corretamente. Se o problema persistir, nosso suporte técnico pode ajudar.', 
+    summary: 'Passos básicos para diagnosticar e resolver problemas comuns de conexão com a internet.', 
+    tags: ['técnico', 'conexão', 'internet', 'solução de problemas'],
+    createdAt: new Date(Date.now() - 86400000 * 16).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+    accessSettings: { general: 'public_to_model' }
   },
 ];
 
@@ -213,7 +237,7 @@ export const MOCK_AI_INSIGHTS: AiInsight[] = [
 export const MOCK_ROLES: Role[] = [
   { 
     id: 'role_admin', name: 'Administrador', 
-    permissions: ALL_PERMISSIONS.map(p => p.id), // Admin tem todas as permissões
+    permissions: ALL_PERMISSIONS.map(p => p.id), 
     description: 'Acesso total ao sistema.' 
   },
   { 
@@ -222,9 +246,10 @@ export const MOCK_ROLES: Role[] = [
       'access_dashboard', 'access_chat_module', 'access_queues_module', 'access_kb_module', 'access_reports_module', 
       'view_reports_full', 'manage_queues', 'supervisor_whisper_chat', 'supervisor_view_all_chats', 'access_support_page',
       'kb_view_personal', 'kb_view_team_all', 'kb_view_queue_all', 'kb_view_general', 
-      'kb_manage_team_all', 'kb_manage_queue_all', 'kb_manage_general', 'kb_create_item'
+      'kb_manage_team_all', 'kb_manage_queue_all', 'kb_manage_general', 'kb_create_item',
+      'manage_users', 
     ], 
-    description: 'Gerencia agentes e filas, visualiza relatórios, gerencia KB.' 
+    description: 'Gerencia agentes e filas, visualiza relatórios, gerencia KB e usuários (exceto admins).' 
   },
   { 
     id: 'role_agent_human', name: 'Agente Humano', 
@@ -237,7 +262,7 @@ export const MOCK_ROLES: Role[] = [
   { 
     id: 'role_agent_ai', name: 'Agente IA', 
     permissions: [
-      'handle_chats_ai', 'kb_view_queue_assigned', 'kb_view_general' // IA pode ver KB de suas filas e geral
+      'handle_chats_ai', 'kb_view_queue_assigned', 'kb_view_general' 
     ], 
     description: 'Agente de IA automatizado para atendimento.' 
   },
@@ -266,3 +291,4 @@ export const MOCK_AI_MODELS: AiModel[] = [
     description: 'Modelo experimental da Google AI com capacidade de geração de imagem.'
   },
 ];
+// Foi removida a constante MOCK_KB_ARTICLES_FOR_GENKIT pois agora as sugestões usam MOCK_KB_ITEMS

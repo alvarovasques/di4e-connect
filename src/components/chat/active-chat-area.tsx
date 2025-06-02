@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { Chat, Message, User, KnowledgeBaseArticle, WhisperNote, Queue } from '@/types';
-import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ARTICLES_FOR_GENKIT, MOCK_WHISPER_NOTES, MOCK_CURRENT_USER } from '@/lib/mock-data';
+import type { Chat, Message, User, KnowledgeBaseArticle, WhisperNote, Queue, KBItem } from '@/types';
+import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ITEMS, MOCK_WHISPER_NOTES, MOCK_CURRENT_USER } from '@/lib/mock-data';
 import MessageBubble from './message-bubble';
 import MessageInputArea from './message-input-area';
 import WhisperNoteInput from './whisper-note-input';
@@ -68,14 +68,31 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     try {
       const chatContent = currentMessages.map(m => `${m.sender}: ${m.content}`).join('\n');
       
+      const textBasedKbItemsForGenkit = MOCK_KB_ITEMS.filter(item =>
+        item.type === 'file' &&
+        (item.mimeType === 'text/markdown' || item.mimeType === 'text/plain' || (item.content && item.content.trim() !== ''))
+      ).map(item => ({
+        id: item.id,
+        title: item.name,
+        content: item.content || item.summary || '', 
+      }));
+
       const kbSuggestions = await suggestKnowledgeBaseArticles({
         chatContent,
-        knowledgeBaseArticles: MOCK_KB_ARTICLES_FOR_GENKIT,
+        knowledgeBaseArticles: textBasedKbItemsForGenkit,
       });
-      setSuggestedArticles(kbSuggestions.map(s => ({
-        ...MOCK_KB_ARTICLES_FOR_GENKIT.find(kb => kb.id === s.id)!,
-        relevanceScore: s.relevanceScore,
-      })).slice(0, 3)); 
+      
+      setSuggestedArticles(kbSuggestions.map(s => {
+        const originalItem = MOCK_KB_ITEMS.find(kb => kb.id === s.id) as KBItem | undefined;
+        return {
+          id: s.id,
+          title: originalItem?.name || s.title || 'Artigo Desconhecido',
+          content: originalItem?.content || '',
+          summary: originalItem?.summary,
+          relevanceScore: s.relevanceScore,
+          tags: originalItem?.tags,
+        };
+      }).slice(0, 3)); 
 
       const lastCustomerMessage = [...currentMessages].reverse().find(m => m.sender === 'customer');
       if (lastCustomerMessage) {
@@ -276,6 +293,4 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 };
 
 export default ActiveChatArea;
-
-
-    
+        
