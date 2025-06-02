@@ -232,9 +232,11 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
                     agents={MOCK_USERS.filter(u => u.userType === "AGENT_HUMAN")} 
                     onTransfer={handleTransferChatSubmit} 
                 />
-                <Button variant="outline" size="sm" onClick={handleAssumeChat} title="Assumir Chat" disabled={isCurrentUserAssigned}>
-                    <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir</span>
-                </Button>
+                {!isCurrentUserAssigned && (
+                  <Button variant="outline" size="sm" onClick={handleAssumeChat} title="Assumir Chat">
+                      <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir</span>
+                  </Button>
+                )}
                  <Button variant="outline" size="sm" onClick={handleResolveChat} title="Resolver Chat" className="text-green-600 hover:text-green-700 border-green-600 hover:border-green-700">
                     <CheckCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Resolver</span>
                 </Button>
