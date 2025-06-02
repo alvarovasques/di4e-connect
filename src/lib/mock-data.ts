@@ -1,22 +1,27 @@
 
-import type { User, Chat, Message, Queue, KnowledgeBaseArticle, WhisperNote, Metric, PerformanceData, AiInsight, Role, AiModel } from '@/types';
+import type { User, Chat, Message, Queue, KnowledgeBaseArticle, WhisperNote, Metric, PerformanceData, AiInsight, Role, AiModel, PermissionId } from '@/types';
+import { ALL_PERMISSIONS } from '@/types'; // Importar ALL_PERMISSIONS
 
 export const MOCK_USERS: User[] = [
-  { id: 'user_1', name: 'Alice Silva', email: 'alice@example.com', userType: 'AGENT_HUMAN', avatarUrl: 'https://placehold.co/100x100/E6A4B4/white?text=AS' },
-  { id: 'user_2', name: 'Roberto Johnson', email: 'roberto@example.com', userType: 'SUPERVISOR', avatarUrl: 'https://placehold.co/100x100/A4E6B4/white?text=RJ' },
-  { 
-    id: 'user_3', 
-    name: 'Assistente IA Padrão', 
-    email: 'ia@example.com', 
-    userType: 'AGENT_AI', 
+  { id: 'user_1', name: 'Alice Silva', email: 'alice@example.com', userType: 'AGENT_HUMAN', avatarUrl: 'https://placehold.co/100x100/E6A4B4/white?text=AS', roleId: 'role_agent_human' },
+  { id: 'user_2', name: 'Roberto Johnson', email: 'roberto@example.com', userType: 'SUPERVISOR', avatarUrl: 'https://placehold.co/100x100/A4E6B4/white?text=RJ', roleId: 'role_supervisor' },
+  {
+    id: 'user_3',
+    name: 'Assistente IA Padrão',
+    email: 'ia@example.com',
+    userType: 'AGENT_AI',
     avatarUrl: 'https://placehold.co/100x100/A4B4E6/white?text=IA',
     llmPrompt: 'Você é um assistente de atendimento ao cliente amigável e eficiente. Responda às perguntas dos clientes de forma clara e concisa. Se não souber a resposta, diga que vai verificar e peça um momento.',
-    aiModelName: 'gemini-1.5-flash'
+    aiModelName: 'gemini-1.5-flash',
+    roleId: 'role_agent_ai' // Agentes IA também podem ter cargos/permissões
   },
-  { id: 'user_4', name: 'Carlos Brown', email: 'carlos@example.com', userType: 'ADMIN', avatarUrl: 'https://placehold.co/100x100/E6DCA4/white?text=CB' },
+  { id: 'user_4', name: 'Carlos Brown', email: 'carlos@example.com', userType: 'ADMIN', avatarUrl: 'https://placehold.co/100x100/E6DCA4/white?text=CB', roleId: 'role_admin' },
+  { id: 'user_5', name: 'Viviane Lima', email: 'viviane@example.com', userType: 'VIEWER', avatarUrl: 'https://placehold.co/100x100/B4A4E6/white?text=VL', roleId: 'role_viewer' },
 ];
 
-export const MOCK_CURRENT_USER: User = MOCK_USERS[1]; // Roberto Johnson (Supervisor)
+// O MOCK_CURRENT_USER pode ser alterado para testar diferentes perfis de permissão
+export const MOCK_CURRENT_USER: User = MOCK_USERS[3]; // Carlos Brown (Admin) para ter acesso a tudo inicialmente
+// export const MOCK_CURRENT_USER: User = MOCK_USERS[0]; // Alice Silva (Agente Humano) para testar permissões restritas
 
 const generateMessages = (chatId: string, count: number): Message[] => {
   const messages: Message[] = [];
@@ -32,7 +37,7 @@ const generateMessages = (chatId: string, count: number): Message[] => {
       sender: senderType,
       senderId: senderType === 'agent' ? agent.id : undefined,
       senderName: senderType === 'agent' ? agent.name : 'Cliente',
-      timestamp: new Date(Date.now() - (count - i) * 60000 * 5), 
+      timestamp: new Date(Date.now() - (count - i) * 60000 * 5),
       isFromCustomer: senderType === 'customer',
       sentimentScore: senderType === 'customer' ? (Math.random() * 2 - 1) : undefined,
     });
@@ -50,9 +55,9 @@ export const MOCK_CHATS: Chat[] = [
     assignedTo: MOCK_USERS[0].id,
     status: 'IN_PROGRESS',
     priority: 'HIGH',
-    createdAt: new Date(Date.now() - 3600000 * 2), 
+    createdAt: new Date(Date.now() - 3600000 * 2),
     updatedAt: new Date(),
-    lastActivity: new Date(Date.now() - 60000 * 5), 
+    lastActivity: new Date(Date.now() - 60000 * 5),
     lastMessagePreview: 'Ok, vou tentar isso agora.',
     unreadCount: 0,
     avatarUrl: 'https://placehold.co/100x100/F39C12/white?text=JS',
@@ -68,8 +73,8 @@ export const MOCK_CHATS: Chat[] = [
     assignedTo: null,
     status: 'WAITING',
     priority: 'MEDIUM',
-    createdAt: new Date(Date.now() - 3600000 * 1), 
-    updatedAt: new Date(Date.now() - 60000 * 15), 
+    createdAt: new Date(Date.now() - 3600000 * 1),
+    updatedAt: new Date(Date.now() - 60000 * 15),
     lastActivity: new Date(Date.now() - 60000 * 15),
     lastMessagePreview: 'Preciso de ajuda com minha fatura.',
     unreadCount: 2,
@@ -86,7 +91,7 @@ export const MOCK_CHATS: Chat[] = [
     assignedTo: MOCK_USERS[2].id, // Assistente IA Padrão
     status: 'RESOLVED',
     priority: 'LOW',
-    createdAt: new Date(Date.now() - 3600000 * 5), 
+    createdAt: new Date(Date.now() - 3600000 * 5),
     updatedAt: new Date(Date.now() - 3600000 * 1),
     lastActivity: new Date(Date.now() - 3600000 * 1),
     lastMessagePreview: 'Obrigado pela sua ajuda!',
@@ -137,25 +142,25 @@ export const MOCK_AI_INSIGHTS: AiInsight[] = [
 ];
 
 export const MOCK_ROLES: Role[] = [
-  { id: 'role_admin', name: 'Administrador', permissions: ['manage_users', 'manage_roles', 'view_reports', 'manage_queues', 'manage_ai_settings'], description: 'Acesso total ao sistema.' },
-  { id: 'role_supervisor', name: 'Supervisor', permissions: ['view_reports', 'manage_queues', 'whisper_chats', 'view_all_chats'], description: 'Gerencia agentes e filas.' },
-  { id: 'role_agent_human', name: 'Agente Humano', permissions: ['handle_chats', 'view_kb'], description: 'Lida com interações de clientes.' },
-  { id: 'role_agent_ai', name: 'Agente IA', permissions: ['handle_chats_ai_only'], description: 'Agente de IA automatizado.' },
-  { id: 'role_viewer', name: 'Visualizador', permissions: ['view_reports_limited'], description: 'Acesso somente leitura a determinados relatórios.' },
+  { id: 'role_admin', name: 'Administrador', permissions: ALL_PERMISSIONS.map(p => p.id), description: 'Acesso total ao sistema.' },
+  { id: 'role_supervisor', name: 'Supervisor', permissions: ['access_dashboard', 'access_chat_module', 'access_queues_module', 'access_kb_module', 'access_reports_module', 'view_reports_full', 'manage_queues', 'supervisor_whisper_chat', 'supervisor_view_all_chats', 'access_support_page'], description: 'Gerencia agentes e filas, visualiza relatórios.' },
+  { id: 'role_agent_human', name: 'Agente Humano', permissions: ['access_dashboard', 'access_chat_module', 'access_queues_module', 'view_knowledge_base', 'handle_chats_human', 'access_support_page'], description: 'Lida com interações de clientes.' },
+  { id: 'role_agent_ai', name: 'Agente IA', permissions: ['handle_chats_ai'], description: 'Agente de IA automatizado para atendimento.' }, // Permissão específica para IA
+  { id: 'role_viewer', name: 'Visualizador', permissions: ['access_dashboard', 'view_reports_limited', 'access_support_page'], description: 'Acesso somente leitura a determinados relatórios e ao painel.' },
 ];
 
 export const MOCK_AI_MODELS: AiModel[] = [
-  { 
-    id: 'model_1', 
-    name: 'gemini-1.5-flash', 
-    token: 'MOCK_TOKEN_GEMINI_FLASH_XXXXXXXXXXXXXXXXXXXX', // Exemplo, não usar em produção
+  {
+    id: 'model_1',
+    name: 'gemini-1.5-flash',
+    token: 'MOCK_TOKEN_GEMINI_FLASH_XXXXXXXXXXXXXXXXXXXX', 
     provider: 'Google AI',
     description: 'Modelo rápido e versátil da Google AI.'
   },
-  { 
-    id: 'model_2', 
-    name: 'googleai/gemini-2.0-flash-exp', 
-    token: 'MOCK_TOKEN_GEMINI_FLASH_EXP_YYYYYYYYYYYYYYYY', // Exemplo, não usar em produção
+  {
+    id: 'model_2',
+    name: 'googleai/gemini-2.0-flash-exp',
+    token: 'MOCK_TOKEN_GEMINI_FLASH_EXP_YYYYYYYYYYYYYYYY', 
     provider: 'Google AI',
     description: 'Modelo experimental da Google AI com capacidade de geração de imagem.'
   },

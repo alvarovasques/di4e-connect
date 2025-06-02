@@ -7,6 +7,7 @@ export type User = {
   avatarUrl?: string;
   llmPrompt?: string; // Prompt do sistema para agentes IA
   aiModelName?: string; // Nome do modelo de IA (ex: gemini-pro)
+  roleId?: string; // Adicionado para vincular usuário a um cargo
 };
 
 export type Message = {
@@ -92,10 +93,36 @@ export type AiInsight = {
   createdAt: Date;
 };
 
+// Definindo explicitamente o tipo para IDs de permissão
+export const ALL_PERMISSIONS = [
+  { id: 'manage_users', label: 'Gerenciar Usuários (Humanos)' },
+  { id: 'manage_roles', label: 'Gerenciar Cargos e Permissões' },
+  { id: 'manage_ai_agents', label: 'Gerenciar Agentes de IA' },
+  { id: 'manage_ai_models', label: 'Gerenciar Modelos de IA' },
+  { id: 'view_reports_full', label: 'Visualizar Relatórios Completos' },
+  { id: 'view_reports_limited', label: 'Visualizar Relatórios Limitados' },
+  { id: 'manage_queues', label: 'Gerenciar Filas de Atendimento' },
+  { id: 'handle_chats_human', label: 'Atender Chats (Agente Humano)' },
+  { id: 'handle_chats_ai', label: 'Atender Chats (Agente IA)' },
+  { id: 'view_knowledge_base', label: 'Visualizar Base de Conhecimento' },
+  { id: 'manage_knowledge_base', label: 'Gerenciar Base de Conhecimento' },
+  { id: 'supervisor_whisper_chat', label: 'Sussurrar em Chats (Supervisor)' },
+  { id: 'supervisor_view_all_chats', label: 'Visualizar Todos os Chats (Supervisor)' },
+  { id: 'access_admin_section', label: 'Acessar Seção de Administração' },
+  { id: 'access_dashboard', label: 'Acessar Painel Principal' },
+  { id: 'access_chat_module', label: 'Acessar Módulo de Chat' },
+  { id: 'access_queues_module', label: 'Acessar Módulo de Filas' },
+  { id: 'access_kb_module', label: 'Acessar Módulo da Base de Conhecimento' },
+  { id: 'access_reports_module', label: 'Acessar Módulo de Relatórios' },
+  { id: 'access_support_page', label: 'Acessar Página de Suporte' },
+] as const;
+
+export type PermissionId = typeof ALL_PERMISSIONS[number]['id'];
+
 export type Role = {
   id: string;
   name: string;
-  permissions: string[];
+  permissions: PermissionId[];
   description?: string;
 };
 
