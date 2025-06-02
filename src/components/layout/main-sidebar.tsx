@@ -4,16 +4,19 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_ITEMS, NavItem, APP_NAME } from '@/lib/constants';
-import { MOCK_CURRENT_USER, MOCK_ROLES } from '@/lib/mock-data'; // Import mock data
-import type { PermissionId, Role } from '@/types'; // Import PermissionId
+// Import MOCK_USERS to determine client-side user
+import { MOCK_CURRENT_USER as INITIAL_MOCK_CURRENT_USER, MOCK_ROLES, MOCK_USERS } from '@/lib/mock-data'; 
+import type { PermissionId, Role, User } from '@/types'; 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import AppLogo from '@/components/icons/app-logo';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useState, useEffect } from 'react'; // Import useState and useEffect
 
 // Helper function to get user permissions (simulated)
-const getUserPermissions = (currentUser: typeof MOCK_CURRENT_USER, roles: Role[]): Set<PermissionId> => {
+// This function will now use the currentUser passed to it, which will be stateful
+const getUserPermissions = (currentUser: User, roles: Role[]): Set<PermissionId> => {
   if (!currentUser.roleId) {
     return new Set();
   }
@@ -26,16 +29,47 @@ const getUserPermissions = (currentUser: typeof MOCK_CURRENT_USER, roles: Role[]
 
 const MainSidebar = () => {
   const pathname = usePathname();
-  const currentUserPermissions = getUserPermissions(MOCK_CURRENT_USER, MOCK_ROLES);
+  // State for the current user, initialized with the server-rendered/initial MOCK_CURRENT_USER
+  const [currentUser, setCurrentUser] = useState<User>(INITIAL_MOCK_CURRENT_USER);
+  // State to track if component has mounted on client
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    // This effect runs only on the client, after initial mount
+    setIsClient(true);
+    
+    // Determine the actual MOCK_CURRENT_USER on the client side based on localStorage
+    const simulatedUserType = localStorage.getItem('simulatedUserType');
+    let clientDeterminedUser = INITIAL_MOCK_CURRENT_USER; // Default to initial
+
+    const adminUser = MOCK_USERS.find(u => u.userType === 'ADMIN');
+    const supervisorUser = MOCK_USERS.find(u => u.userType === 'SUPERVISOR');
+    const agentUser = MOCK_USERS.find(u => u.userType === 'AGENT_HUMAN');
+
+    if (simulatedUserType === 'AGENT_HUMAN' && agentUser) {
+      clientDeterminedUser = agentUser;
+    } else if (simulatedUserType === 'SUPERVISOR' && supervisorUser) {
+      clientDeterminedUser = supervisorUser;
+    } else if (simulatedUserType === 'ADMIN' && adminUser) {
+      clientDeterminedUser = adminUser;
+    }
+    // If localStorage is not set or doesn't match, it defaults to INITIAL_MOCK_CURRENT_USER
+    // or the logic above handles it.
+    
+    setCurrentUser(clientDeterminedUser);
+  }, []); // Empty dependency array ensures this runs once on mount
+
+  // Permissions are now derived from the stateful currentUser
+  const currentUserPermissions = getUserPermissions(currentUser, MOCK_ROLES);
 
   const hasPermission = (permissionId?: PermissionId): boolean => {
-    if (!permissionId) return true; // If no permission is required, always show
+    if (!permissionId) return true; 
     return currentUserPermissions.has(permissionId);
   };
 
   const renderNavItem = (item: NavItem, isSubItem = false): JSX.Element | null => {
     if (!hasPermission(item.requiredPermission)) {
-      return null; // Do not render if user doesn't have permission
+      return null; 
     }
 
     const isActive = item.path === '/' ? pathname === '/' : pathname.startsWith(item.path);
@@ -67,7 +101,6 @@ const MainSidebar = () => {
       );
     }
 
-    // Render as a direct link if no visible sub-items or not a parent
     return (
       <Button
         key={item.path}
@@ -91,7 +124,7 @@ const MainSidebar = () => {
   };
 
   const groupedNavItems = NAV_ITEMS.reduce((acc, item) => {
-    if (!hasPermission(item.requiredPermission)) return acc; // Skip whole section if no permission
+    if (!hasPermission(item.requiredPermission)) return acc; 
     
     const visibleSubItems = item.subItems?.filter(subItem => hasPermission(subItem.requiredPermission));
     const itemToPush = {...item};
@@ -99,8 +132,7 @@ const MainSidebar = () => {
         if (visibleSubItems && visibleSubItems.length > 0) {
             itemToPush.subItems = visibleSubItems;
         } else if (visibleSubItems && visibleSubItems.length === 0) {
-            // If it's a parent item but has no visible children, don't show it unless it's a link itself
-             if(!item.path || item.path === '/admin'){ // Example condition: if parent is just a grouper
+             if(!item.path || item.path === '/admin'){ 
                  return acc;
              }
         }
@@ -121,6 +153,9 @@ const MainSidebar = () => {
     })
     .map(item => item.path);
 
+  // Determine the name to display. For SSR and initial client render, use INITIAL_MOCK_CURRENT_USER.
+  // After client mount and useEffect, use the stateful currentUser.name.
+  const displayedUserName = isClient ? currentUser.name : INITIAL_MOCK_CURRENT_USER.name;
 
   return (
     <aside className="fixed inset-y-0 left-0 z-10 flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar">
@@ -131,20 +166,27 @@ const MainSidebar = () => {
         </Link>
       </div>
       <ScrollArea className="flex-1">
-        <Accordion type="multiple" className="w-full px-3 py-4" defaultValue={activeAccordionItems}>
-          {Object.entries(groupedNavItems).map(([section, items]) => (
-            <div key={section} className="mb-4">
-              <h3 className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground tracking-wider">{section}</h3>
-              <nav className="flex flex-col gap-1">
-                {items.map(item => renderNavItem(item)).filter(Boolean)}
-              </nav>
-            </div>
-          ))}
-        </Accordion>
+        {isClient ? ( // Only render accordion and nav items once client state is confirmed
+          <Accordion type="multiple" className="w-full px-3 py-4" defaultValue={activeAccordionItems}>
+            {Object.entries(groupedNavItems).map(([section, items]) => (
+              <div key={section} className="mb-4">
+                <h3 className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground tracking-wider">{section}</h3>
+                <nav className="flex flex-col gap-1">
+                  {items.map(item => renderNavItem(item)).filter(Boolean)}
+                </nav>
+              </div>
+            ))}
+          </Accordion>
+        ) : (
+          // Render a placeholder or skeleton during SSR and initial client render for nav items
+          <div className="p-4 space-y-2"> 
+            {[...Array(3)].map((_, i) => <div key={i} className="h-8 bg-muted/50 rounded animate-pulse" />)}
+          </div>
+        )}
       </ScrollArea>
       <div className="mt-auto border-t border-sidebar-border p-4">
         <Button variant="outline" className="w-full text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground">
-          Perfil: {MOCK_CURRENT_USER.name}
+          Perfil: {displayedUserName}
         </Button>
       </div>
     </aside>

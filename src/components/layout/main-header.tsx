@@ -5,19 +5,42 @@ import { Bell, Search, UserCircle, Menu, Users2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import MainSidebar from "./main-sidebar"; 
+import MainSidebar from "./main-sidebar";
 import { APP_NAME } from '@/lib/constants';
 import AppLogo from '@/components/icons/app-logo';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_ITEMS } from '@/lib/constants';
-import { MOCK_CURRENT_USER, setSimulatedUserType, MOCK_USERS } from '@/lib/mock-data';
-
+// Import MOCK_USERS to determine client-side user and INITIAL_MOCK_CURRENT_USER
+import { MOCK_CURRENT_USER as INITIAL_MOCK_CURRENT_USER, setSimulatedUserType, MOCK_USERS } from '@/lib/mock-data';
+import type { User } from '@/types';
+import { useState, useEffect } from 'react';
 
 const MainHeader = () => {
-  const user = MOCK_CURRENT_USER; // Use o MOCK_CURRENT_USER dinâmico
+  const [currentUser, setCurrentUser] = useState<User>(INITIAL_MOCK_CURRENT_USER);
+  const [isClient, setIsClient] = useState(false);
   const pathname = usePathname();
-  
+
+  useEffect(() => {
+    setIsClient(true);
+    // Determine the actual MOCK_CURRENT_USER on the client side based on localStorage
+    const simulatedUserType = localStorage.getItem('simulatedUserType');
+    let clientDeterminedUser = INITIAL_MOCK_CURRENT_USER; // Default to initial
+
+    const adminUser = MOCK_USERS.find(u => u.userType === 'ADMIN');
+    const supervisorUser = MOCK_USERS.find(u => u.userType === 'SUPERVISOR');
+    const agentUser = MOCK_USERS.find(u => u.userType === 'AGENT_HUMAN');
+
+    if (simulatedUserType === 'AGENT_HUMAN' && agentUser) {
+      clientDeterminedUser = agentUser;
+    } else if (simulatedUserType === 'SUPERVISOR' && supervisorUser) {
+      clientDeterminedUser = supervisorUser;
+    } else if (simulatedUserType === 'ADMIN' && adminUser) {
+      clientDeterminedUser = adminUser;
+    }
+    setCurrentUser(clientDeterminedUser);
+  }, []);
+
   const getCurrentPageLabel = () => {
     const findItem = (items: typeof NAV_ITEMS): string | null => {
       for (const item of items) {
@@ -41,16 +64,33 @@ const MainHeader = () => {
   };
 
   const handleToggleUser = () => {
-    if (MOCK_CURRENT_USER.userType === 'SUPERVISOR') {
+    // setSimulatedUserType already reloads the page
+    if (currentUser.userType === 'SUPERVISOR') {
       setSimulatedUserType('AGENT_HUMAN');
-    } else {
+    } else if (currentUser.userType === 'AGENT_HUMAN') {
+      setSimulatedUserType('ADMIN');
+    } else { // ADMIN or other
       setSimulatedUserType('SUPERVISOR');
     }
   };
 
-  const agentUser = MOCK_USERS.find(u => u.id === 'user_1'); // Alice
-  const supervisorUser = MOCK_USERS.find(u => u.id === 'user_2'); // Roberto
+  const agentUser = MOCK_USERS.find(u => u.id === 'user_1');
+  const supervisorUser = MOCK_USERS.find(u => u.id === 'user_2');
+  const adminUser = MOCK_USERS.find(u => u.id === 'user_4');
 
+  let toggleButtonText = "";
+  if (currentUser.userType === 'SUPERVISOR' && agentUser) {
+    toggleButtonText = `Agente (${agentUser.name.split(' ')[0]})`;
+  } else if (currentUser.userType === 'AGENT_HUMAN' && adminUser) {
+    toggleButtonText = `Admin (${adminUser.name.split(' ')[0]})`;
+  } else if (currentUser.userType === 'ADMIN' && supervisorUser){
+    toggleButtonText = `Superv. (${supervisorUser.name.split(' ')[0]})`;
+  } else { // Fallback
+     toggleButtonText = supervisorUser ? `Superv. (${supervisorUser.name.split(' ')[0]})` : "Alternar";
+  }
+
+  // Use INITIAL_MOCK_CURRENT_USER for SSR and initial client render for elements that might mismatch
+  const displayedCurrentUser = isClient ? currentUser : INITIAL_MOCK_CURRENT_USER;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 px-4 shadow-sm backdrop-blur-sm md:px-6">
@@ -84,23 +124,20 @@ const MainHeader = () => {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input type="search" placeholder="Pesquisar..." className="pl-8 sm:w-[200px] md:w-[250px] lg:w-[300px] rounded-full text-sm" />
         </div>
-        
-        {/* Botão Provisório para Alternar Usuário */}
-        <Button onClick={handleToggleUser} variant="outline" size="sm" className="text-xs sm:text-sm" title={`Logado como: ${MOCK_CURRENT_USER.name} (${MOCK_CURRENT_USER.userType})`}>
+
+        <Button onClick={handleToggleUser} variant="outline" size="sm" className="text-xs sm:text-sm" title={`Logado como: ${displayedCurrentUser.name} (${displayedCurrentUser.userType})`}>
           <Users2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
           <span className="hidden sm:inline">Alternar para: </span>
-           {MOCK_CURRENT_USER.userType === 'SUPERVISOR' ? 
-            `Agente (${agentUser?.name.split(' ')[0]})` : 
-            `Superv. (${supervisorUser?.name.split(' ')[0]})`}
+           {toggleButtonText}
         </Button>
-        
+
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Notificações</span>
         </Button>
         <Button variant="ghost" size="icon" className="rounded-full">
-          {user.avatarUrl ? (
-            <img src={user.avatarUrl} alt={user.name} data-ai-hint="user avatar" className="h-8 w-8 rounded-full border" />
+          {displayedCurrentUser.avatarUrl ? (
+            <img src={displayedCurrentUser.avatarUrl} alt={displayedCurrentUser.name} data-ai-hint="user avatar" className="h-8 w-8 rounded-full border" />
           ) : (
             <UserCircle className="h-6 w-6" />
           )}
@@ -112,4 +149,3 @@ const MainHeader = () => {
 };
 
 export default MainHeader;
-
