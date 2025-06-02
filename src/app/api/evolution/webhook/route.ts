@@ -2,17 +2,31 @@
 // src/app/api/evolution/webhook/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 
+const EVOLUTION_API_WEBHOOK_SECRET = process.env.EVOLUTION_API_WEBHOOK_SECRET;
+
 /**
  * Endpoint de Webhook para a Evolution API.
  * A Evolution API enviará eventos (como novas mensagens) para este endpoint.
  */
 export async function POST(request: NextRequest) {
   try {
+    // 1. Validar a requisição
+    if (EVOLUTION_API_WEBHOOK_SECRET) {
+      const requestSecret = request.headers.get('X-Evolution-Api-Secret'); // Ou qualquer header que a Evolution API use
+      if (requestSecret !== EVOLUTION_API_WEBHOOK_SECRET) {
+        console.warn('Webhook da Evolution API: Falha na validação do token secreto.');
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    } else {
+      // Em ambiente de desenvolvimento, pode ser útil logar um aviso se o secret não estiver configurado.
+      // Em produção, a ausência do secret deveria idealmente impedir o webhook de funcionar ou logar um erro crítico.
+      console.warn('EVOLUTION_API_WEBHOOK_SECRET não está configurado. Webhook está operando em modo inseguro.');
+    }
+
     const body = await request.json();
     console.log('Webhook da Evolution API Recebido:', JSON.stringify(body, null, 2));
 
     // TODO:
-    // 1. Validar a requisição (ex: usando um token secreto configurado na Evolution API e aqui)
     // 2. Processar o evento:
     //    - Se for uma nova mensagem (ex: event 'messages.upsert'):
     //      - Extrair detalhes da mensagem (remetente, conteúdo, ID da mensagem do WhatsApp).
