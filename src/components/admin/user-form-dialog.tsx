@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -27,26 +26,16 @@ import {
 } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
+// Schema for regular users, excluding AI Agent specific fields at the top level
 const userFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, insira um email válido." }),
-  userType: z.enum(['ADMIN', 'SUPERVISOR', 'AGENT_HUMAN', 'AGENT_AI', 'VIEWER'], {
+  userType: z.enum(['ADMIN', 'SUPERVISOR', 'AGENT_HUMAN', 'VIEWER'], { // AGENT_AI removed
     errorMap: () => ({ message: "Selecione um tipo de usuário válido." }),
   }),
   avatarUrl: z.string().url({ message: "Por favor, insira uma URL válida para o avatar." }).optional().or(z.literal('')),
-  llmPrompt: z.string().optional(),
-  aiModelName: z.string().optional(),
-}).superRefine((data, ctx) => {
-  if (data.userType === 'AGENT_AI') {
-    if (!data.llmPrompt || data.llmPrompt.trim() === '') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "O Prompt do Sistema é obrigatório para Agentes IA.",
-        path: ['llmPrompt'],
-      });
-    }
-  }
+  // llmPrompt and aiModelName are removed as they are specific to AI Agents
 });
 
 export type UserFormData = z.infer<typeof userFormSchema>;
@@ -61,56 +50,40 @@ type UserFormDialogProps = {
 const UserFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: UserFormDialogProps) => {
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
-    defaultValues: initialData || {
+    defaultValues: initialData && initialData.userType !== 'AGENT_AI' ? initialData : { // Ensure not to load AGENT_AI data
       name: '',
       email: '',
       userType: 'AGENT_HUMAN',
       avatarUrl: '',
-      llmPrompt: '',
-      aiModelName: '',
+      id: undefined,
     },
   });
 
-  const watchedUserType = form.watch('userType');
-
   useEffect(() => {
-    if (initialData) {
-      form.reset({
-        ...initialData,
-        llmPrompt: initialData.llmPrompt || '',
-        aiModelName: initialData.aiModelName || '',
-      });
-    } else {
-      form.reset({
-        name: '',
-        email: '',
-        userType: 'AGENT_HUMAN',
-        avatarUrl: '',
-        llmPrompt: '',
-        aiModelName: '',
-        id: undefined,
-      });
+    if (isOpen) {
+      if (initialData && initialData.userType !== 'AGENT_AI') {
+        form.reset(initialData);
+      } else {
+        form.reset({
+          name: '',
+          email: '',
+          userType: 'AGENT_HUMAN',
+          avatarUrl: '',
+          id: undefined,
+        });
+      }
     }
   }, [initialData, form, isOpen]);
-
-  useEffect(() => {
-    if (watchedUserType !== 'AGENT_AI') {
-      form.setValue('llmPrompt', '');
-      form.setValue('aiModelName', '');
-    }
-  }, [watchedUserType, form]);
-
-
+  
   const handleFormSubmit = (data: UserFormData) => {
     onSubmit(data);
     onOpenChange(false);
   };
   
-  const userTypeOptions: { value: User['userType']; label: string }[] = [
+  const userTypeOptions: { value: Exclude<User['userType'], 'AGENT_AI'>; label: string }[] = [
     { value: 'ADMIN', label: 'Administrador' },
     { value: 'SUPERVISOR', label: 'Supervisor' },
     { value: 'AGENT_HUMAN', label: 'Agente Humano' },
-    { value: 'AGENT_AI', label: 'Agente IA' },
     { value: 'VIEWER', label: 'Visualizador' },
   ];
 
@@ -188,41 +161,6 @@ const UserFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: UserFor
                 </FormItem>
               )}
             />
-
-            {watchedUserType === 'AGENT_AI' && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="llmPrompt"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Prompt do Sistema (Agente IA)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Ex: Você é um assistente virtual amigável e prestativo..."
-                          className="min-h-[100px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="aiModelName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Modelo de IA (Opcional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: gemini-1.5-flash, gpt-4-turbo" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
 
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

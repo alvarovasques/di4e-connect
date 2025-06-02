@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import UserFormDialog, { type UserFormData } from './user-form-dialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,25 +31,31 @@ type UserManagementTableProps = {
 };
 
 const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) => {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  // Filter out AGENT_AI users from the initial list for this table
+  const [users, setUsers] = useState<User[]>(() => initialUsers.filter(u => u.userType !== 'AGENT_AI'));
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    setUsers(initialUsers.filter(u => u.userType !== 'AGENT_AI'));
+  }, [initialUsers]);
+
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.userType.toLowerCase().includes(searchTerm.toLowerCase())
+    (user.userType !== 'AGENT_AI' && user.userType.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const translateUserType = (userType: User['userType']): string => {
+    // AGENT_AI is already filtered out, but keep case for robustness if type changes
     switch (userType) {
       case 'ADMIN': return 'Administrador';
       case 'SUPERVISOR': return 'Supervisor';
       case 'AGENT_HUMAN': return 'Agente Humano';
-      case 'AGENT_AI': return 'Agente IA';
       case 'VIEWER': return 'Visualizador';
+      case 'AGENT_AI': return 'Agente IA'; // Should not appear
       default: return userType.replace('_', ' ');
     }
   };
@@ -59,15 +65,15 @@ const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) 
       case 'ADMIN': return 'destructive';
       case 'SUPERVISOR': return 'default';
       case 'AGENT_HUMAN': return 'secondary';
-      case 'AGENT_AI': return 'outline';
       case 'VIEWER': return 'outline';
+      case 'AGENT_AI': return 'outline'; // Should not appear
       default: return 'secondary';
     }
   };
   
   const handleOpenEditDialog = (userId: string) => {
     const userToEdit = users.find(u => u.id === userId);
-    if (userToEdit) {
+    if (userToEdit && userToEdit.userType !== 'AGENT_AI') {
       setEditingUser(userToEdit);
       setIsFormOpen(true);
     }
@@ -91,26 +97,26 @@ const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) 
   };
   
   const handleFormSubmit = (data: UserFormData) => {
+    const submittedUser = data as User; // Cast UserFormData to User for internal state
+
     if (editingUser && editingUser.id) {
-      // Edit existing user
       setUsers(prevUsers =>
-        prevUsers.map(u => (u.id === editingUser.id ? { ...u, ...data, id: u.id } : u))
+        prevUsers.map(u => (u.id === editingUser.id ? { ...u, ...submittedUser, id: u.id } : u))
       );
       toast({
         title: "Usuário Atualizado",
-        description: `O usuário ${data.name} foi atualizado com sucesso.`,
+        description: `O usuário ${submittedUser.name} foi atualizado com sucesso.`,
       });
     } else {
-      // Add new user
       const newUser: User = {
-        ...data,
-        id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, // Simple unique ID for mock
-        avatarUrl: data.avatarUrl || `https://placehold.co/100x100/cccccc/333333?text=${data.name.substring(0,2).toUpperCase()}`
+        ...submittedUser,
+        id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        avatarUrl: submittedUser.avatarUrl || `https://placehold.co/100x100/cccccc/333333?text=${submittedUser.name.substring(0,2).toUpperCase()}`
       };
       setUsers(prevUsers => [newUser, ...prevUsers]);
       toast({
         title: "Usuário Adicionado",
-        description: `O usuário ${data.name} foi adicionado com sucesso.`,
+        description: `O usuário ${submittedUser.name} foi adicionado com sucesso.`,
       });
     }
     setIsFormOpen(false);
@@ -124,7 +130,7 @@ const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) 
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="font-headline text-xl">Gerenciamento de Usuários</CardTitle>
-            <CardDescription>Gerencie todos os usuários no sistema.</CardDescription>
+            <CardDescription>Gerencie usuários humanos no sistema (Administradores, Supervisores, Agentes e Visualizadores).</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Input 

@@ -34,7 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
     subItems: [
       { path: '/admin/users', label: 'Usuários', icon: Users },
       { path: '/admin/roles', label: 'Cargos e Permissões', icon: Users },
-      { path: '/admin/ai-settings', label: 'Configurações de IA', icon: Bot },
+      { path: '/admin/ai-settings', label: 'Agentes IA', icon: Bot },
     ]
   },
   { path: '/support', label: 'Suporte', icon: LifeBuoy, section: 'Ajuda' },
