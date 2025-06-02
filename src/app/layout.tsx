@@ -7,7 +7,7 @@ import MainLayout from '@/components/layout/main-layout';
 
 
 export const metadata: Metadata = {
-  title: 'IntelliContato',
+  title: 'Di4E Connect',
   description: 'Atendimento ao Cliente WhatsApp com IA',
 };
 

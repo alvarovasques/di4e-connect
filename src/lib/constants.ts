@@ -62,4 +62,4 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/support', label: 'Suporte', icon: LifeBuoy, section: 'Ajuda', requiredPermission: 'access_support_page' },
 ];
 
-export const APP_NAME = "IntelliContato";
+export const APP_NAME = "Di4E Connect";
