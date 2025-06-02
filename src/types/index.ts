@@ -190,6 +190,10 @@ export const ALL_PERMISSIONS = [
 
   { id: 'supervisor_whisper_chat', label: 'Sussurrar em Chats (Supervisor)' }, // This permission can gate the whisper button
   { id: 'supervisor_view_all_chats', label: 'Visualizar Todos os Chats (Supervisor)' },
+
+  // Novas permissões para integrações
+  { id: 'access_integrations_module', label: 'Acessar Módulo de Integrações' },
+  { id: 'manage_whatsapp_channels', label: 'Gerenciar Canais WhatsApp' },
 ] as const;
 
 export type PermissionId = typeof ALL_PERMISSIONS[number]['id'];
@@ -208,4 +212,3 @@ export type AiModel = {
   provider: string;
   description?: string;
 };
-

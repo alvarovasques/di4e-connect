@@ -34,9 +34,10 @@ export const MOCK_USERS: User[] = [
 // Define users for easy access
 const aliceUser = MOCK_USERS.find(u => u.id === 'user_1')!; // Agent
 const robertoUser = MOCK_USERS.find(u => u.id === 'user_2')!; // Supervisor
+const carlosUser = MOCK_USERS.find(u => u.id === 'user_4')!; // Admin
 
 let currentUserForExport: User;
-const defaultUserForMock = robertoUser; // Supervisor as default
+const defaultUserForMock = carlosUser; // Admin as default for easier testing of new sections
 
 if (typeof window !== 'undefined') {
   const simulatedUserType = localStorage.getItem('simulatedUserType');
@@ -44,19 +45,20 @@ if (typeof window !== 'undefined') {
     currentUserForExport = aliceUser;
   } else if (simulatedUserType === 'SUPERVISOR') {
     currentUserForExport = robertoUser;
-  } else {
-    // If no preference in localStorage, default to Supervisor and set it for next time
+  } else if (simulatedUserType === 'ADMIN') {
+    currentUserForExport = carlosUser;
+  }
+  else {
     currentUserForExport = defaultUserForMock;
     localStorage.setItem('simulatedUserType', defaultUserForMock.userType);
   }
 } else {
-  // Server-side or no window object, default to Supervisor
   currentUserForExport = defaultUserForMock;
 }
 
 export const MOCK_CURRENT_USER: User = currentUserForExport;
 
-export const setSimulatedUserType = (userType: 'AGENT_HUMAN' | 'SUPERVISOR') => {
+export const setSimulatedUserType = (userType: 'AGENT_HUMAN' | 'SUPERVISOR' | 'ADMIN') => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('simulatedUserType', userType);
     window.location.reload();
@@ -358,8 +360,9 @@ export const MOCK_ROLES: Role[] = [
       'kb_view_personal', 'kb_view_team_all', 'kb_view_queue_all', 'kb_view_general', 
       'kb_manage_team_all', 'kb_manage_queue_all', 'kb_manage_general', 'kb_create_item',
       'manage_users', 'manage_roles', 'manage_ai_agents', 'access_admin_section',
+      'access_integrations_module', 'manage_whatsapp_channels', // Permissões de integração
     ], 
-    description: 'Gerencia agentes e filas, visualiza relatórios, gerencia KB e usuários (exceto admins), cargos e agentes IA.' 
+    description: 'Gerencia agentes e filas, visualiza relatórios, gerencia KB e usuários (exceto admins), cargos, agentes IA e integrações.' 
   },
   { 
     id: 'role_agent_human', name: 'Agente Humano', 
@@ -401,9 +404,3 @@ export const MOCK_AI_MODELS: AiModel[] = [
     description: 'Modelo experimental da Google AI com capacidade de geração de imagem.'
   },
 ];
-
-    
-
-    
-
-
