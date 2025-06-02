@@ -20,7 +20,7 @@ export const MOCK_USERS: User[] = [
   { id: 'user_5', name: 'Viviane Lima', email: 'viviane@example.com', userType: 'VIEWER', avatarUrl: 'https://placehold.co/100x100/B4A4E6/white?text=VL', roleId: 'role_viewer' },
 ];
 
-export const MOCK_CURRENT_USER: User = MOCK_USERS[3]; 
+export const MOCK_CURRENT_USER: User = MOCK_USERS[1]; // Alterado para Roberto (Supervisor) para testar a página de filas
 
 
 const generateMessages = (chatId: string, count: number): Message[] => {
@@ -35,8 +35,8 @@ const generateMessages = (chatId: string, count: number): Message[] => {
       content: `Esta é a mensagem ${i + 1} para o chat ${chatId}. ${'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(Math.random() * 3 + 1)}`,
       type: 'text',
       sender: senderType,
-      senderId: senderType === 'agent' ? agent.id : undefined,
-      senderName: senderType === 'agent' ? agent.name : 'Cliente',
+      senderId: senderType === 'agent' ? agent.id : `cust_${chatId.split('_')[1]}`, // Simula um ID de cliente
+      senderName: senderType === 'agent' ? agent.name : `Cliente ${chatId.split('_')[1]}`,
       timestamp: new Date(Date.now() - (count - i) * 60000 * 5),
       isFromCustomer: senderType === 'customer',
       sentimentScore: senderType === 'customer' ? (Math.random() * 2 - 1) : undefined,
@@ -51,8 +51,8 @@ export const MOCK_CHATS: Chat[] = [
     whatsappId: 'whatsapp:12345',
     customerName: 'João Silva',
     customerPhone: '+15551234567',
-    queueId: 'queue_1',
-    assignedTo: MOCK_USERS[0].id,
+    queueId: 'queue_1', // Suporte de Vendas
+    assignedTo: MOCK_USERS[0].id, // Alice
     status: 'IN_PROGRESS',
     priority: 'HIGH',
     createdAt: new Date(Date.now() - 3600000 * 2),
@@ -69,7 +69,7 @@ export const MOCK_CHATS: Chat[] = [
     whatsappId: 'whatsapp:67890',
     customerName: 'Maria Souza',
     customerPhone: '+15559876543',
-    queueId: 'queue_2',
+    queueId: 'queue_2', // Suporte Técnico
     assignedTo: null,
     status: 'WAITING',
     priority: 'MEDIUM',
@@ -87,9 +87,9 @@ export const MOCK_CHATS: Chat[] = [
     whatsappId: 'whatsapp:11223',
     customerName: 'Pedro Pereira',
     customerPhone: '+15551122334',
-    queueId: 'queue_1',
-    assignedTo: MOCK_USERS[2].id, 
-    status: 'RESOLVED',
+    queueId: 'queue_1', // Suporte de Vendas
+    assignedTo: MOCK_USERS[2].id, // Assistente IA
+    status: 'IN_PROGRESS', // Mudado para IN_PROGRESS para aparecer no Kanban
     priority: 'LOW',
     createdAt: new Date(Date.now() - 3600000 * 5),
     updatedAt: new Date(Date.now() - 3600000 * 1),
@@ -100,12 +100,48 @@ export const MOCK_CHATS: Chat[] = [
     aiAnalysis: { sentimentScore: 0.95, confidenceIndex: 0.98 },
     messages: generateMessages('chat_3', 8),
   },
+  {
+    id: 'chat_4',
+    whatsappId: 'whatsapp:44556',
+    customerName: 'Ana Costa',
+    customerPhone: '+15554455667',
+    queueId: 'queue_2', // Suporte Técnico
+    assignedTo: MOCK_USERS[0].id, // Alice
+    status: 'WAITING',
+    priority: 'URGENT',
+    createdAt: new Date(Date.now() - 3600000 * 0.5),
+    updatedAt: new Date(Date.now() - 60000 * 5),
+    lastActivity: new Date(Date.now() - 60000 * 5),
+    lastMessagePreview: 'Meu sistema está completamente parado!',
+    unreadCount: 1,
+    avatarUrl: 'https://placehold.co/100x100/E74C3C/white?text=AC',
+    aiAnalysis: { sentimentScore: -0.9, confidenceIndex: 0.92 },
+    messages: generateMessages('chat_4', 3),
+  },
+  {
+    id: 'chat_5',
+    whatsappId: 'whatsapp:77889',
+    customerName: 'Lucas Mendes',
+    customerPhone: '+15557788990',
+    queueId: 'queue_1', // Suporte de Vendas
+    assignedTo: null,
+    status: 'WAITING',
+    priority: 'MEDIUM',
+    createdAt: new Date(Date.now() - 3600000 * 3),
+    updatedAt: new Date(Date.now() - 60000 * 30),
+    lastActivity: new Date(Date.now() - 60000 * 30),
+    lastMessagePreview: 'Gostaria de saber mais sobre o plano premium.',
+    unreadCount: 0,
+    avatarUrl: 'https://placehold.co/100x100/9B59B6/white?text=LM',
+    aiAnalysis: { sentimentScore: 0.1, confidenceIndex: 0.6 },
+    messages: generateMessages('chat_5', 2),
+  },
 ];
 
 export const MOCK_QUEUES: Queue[] = [
   { id: 'queue_1', name: 'Suporte de Vendas', description: 'Lida com consultas de vendas', isActive: true },
   { id: 'queue_2', name: 'Suporte Técnico', description: 'Lida com problemas técnicos', isActive: true },
-  { id: 'queue_3', name: 'Faturamento', description: 'Lida com questões de faturamento', isActive: false },
+  { id: 'queue_3', name: 'Faturamento', description: 'Lida com questões de faturamento', isActive: true }, // Ativada para aparecer no Kanban
 ];
 
 
@@ -130,7 +166,7 @@ export const MOCK_KB_ITEMS: KBItem[] = [
   },
   // ModelType: Queue (Suporte de Vendas - queue_1)
   {
-    id: 'folder_queue_vendas_scripts', name: 'Scripts de Vendas', type: 'folder', modelType: 'queue', queueId: 'queue_1', ownerId: MOCK_USERS[1].id, // Roberto (Supervisor)
+    id: 'folder_queue_vendas_scripts', name: 'Scripts de Vendas (Fila Vendas)', type: 'folder', modelType: 'queue', queueId: 'queue_1', ownerId: MOCK_USERS[1].id, // Roberto (Supervisor)
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
     accessSettings: { general: 'public_to_model' }, tags: ['vendas', 'scripts'],
   },
@@ -140,9 +176,21 @@ export const MOCK_KB_ITEMS: KBItem[] = [
     createdAt: new Date(Date.now() - 86400000 * 4).toISOString(), lastUpdatedAt: new Date().toISOString(),
     accessSettings: { general: 'public_to_model' }, tags: ['produto a', 'script'], summary: 'Script de vendas para o Produto A, focando nos benefícios e solução de problemas.'
   },
+    // ModelType: Queue (Suporte Técnico - queue_2)
+  {
+    id: 'folder_queue_tecnico_solucoes', name: 'Soluções Comuns (Fila Técnico)', type: 'folder', modelType: 'queue', queueId: 'queue_2', ownerId: MOCK_USERS[1].id, // Roberto (Supervisor)
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+    accessSettings: { general: 'public_to_model' }, tags: ['técnico', 'soluções'],
+  },
+  {
+    id: 'file_queue_tecnico_redefinir_senha', parentId: 'folder_queue_tecnico_solucoes', name: 'Como Redefinir Senha.md', type: 'file', modelType: 'queue', queueId: 'queue_2', ownerId: MOCK_USERS[1].id,
+    mimeType: 'text/markdown', content: '# Como Redefinir Senha\n\n1. Vá para a página de login.\n2. Clique em "Esqueci minha senha".\n3. Siga as instruções no email.', size: 700,
+    createdAt: new Date(Date.now() - 86400000 * 4).toISOString(), lastUpdatedAt: new Date().toISOString(),
+    accessSettings: { general: 'public_to_model' }, tags: ['senha', 'redefinição', 'tutorial'], summary: 'Passos para ajudar clientes a redefinir suas senhas.'
+  },
   // ModelType: Team (Suporte Geral - team_suporte_geral)
   {
-    id: 'folder_team_suporte_procedimentos', name: 'Procedimentos Internos', type: 'folder', modelType: 'team', teamId: 'team_suporte_geral', ownerId: MOCK_USERS[1].id,
+    id: 'folder_team_suporte_procedimentos', name: 'Procedimentos Internos (Equipe Suporte Geral)', type: 'folder', modelType: 'team', teamId: 'team_suporte_geral', ownerId: MOCK_USERS[1].id,
     createdAt: new Date(Date.now() - 86400000 * 7).toISOString(), lastUpdatedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
     accessSettings: { general: 'public_to_model' }, tags: ['procedimentos', 'suporte'],
   },
@@ -154,7 +202,7 @@ export const MOCK_KB_ITEMS: KBItem[] = [
   },
   // ModelType: Personal (Alice - user_1)
   {
-    id: 'folder_personal_alice_rascunhos', name: 'Meus Rascunhos', type: 'folder', modelType: 'personal', ownerId: MOCK_USERS[0].id,
+    id: 'folder_personal_alice_rascunhos', name: 'Meus Rascunhos (Alice)', type: 'folder', modelType: 'personal', ownerId: MOCK_USERS[0].id,
     createdAt: new Date(Date.now() - 86400000 * 3).toISOString(), lastUpdatedAt: new Date().toISOString(),
     accessSettings: { general: 'owner_only' }, tags: ['pessoal', 'rascunhos'],
   },
@@ -247,9 +295,9 @@ export const MOCK_ROLES: Role[] = [
       'view_reports_full', 'manage_queues', 'supervisor_whisper_chat', 'supervisor_view_all_chats', 'access_support_page',
       'kb_view_personal', 'kb_view_team_all', 'kb_view_queue_all', 'kb_view_general', 
       'kb_manage_team_all', 'kb_manage_queue_all', 'kb_manage_general', 'kb_create_item',
-      'manage_users', 
+      'manage_users', 'manage_roles', 'manage_ai_agents', // Adicionado manage_roles e manage_ai_agents para Supervisor também
     ], 
-    description: 'Gerencia agentes e filas, visualiza relatórios, gerencia KB e usuários (exceto admins).' 
+    description: 'Gerencia agentes e filas, visualiza relatórios, gerencia KB e usuários (exceto admins), cargos e agentes IA.' 
   },
   { 
     id: 'role_agent_human', name: 'Agente Humano', 
@@ -291,4 +339,5 @@ export const MOCK_AI_MODELS: AiModel[] = [
     description: 'Modelo experimental da Google AI com capacidade de geração de imagem.'
   },
 ];
-// Foi removida a constante MOCK_KB_ARTICLES_FOR_GENKIT pois agora as sugestões usam MOCK_KB_ITEMS
+
+    
