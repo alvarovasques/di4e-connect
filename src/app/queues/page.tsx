@@ -12,6 +12,7 @@ import { MOCK_QUEUES, MOCK_CHATS, MOCK_CURRENT_USER, MOCK_ROLES } from '@/lib/mo
 import type { Queue, Chat, PermissionId } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils'; // Added import for cn
 
 const QueueCard = ({ queue, chatsInQueue }: { queue: Queue; chatsInQueue: Chat[] }) => {
   const router = useRouter();
