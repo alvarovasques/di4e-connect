@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 const AppLogo = ({ className }: { className?: string }) => (
@@ -7,7 +8,7 @@ const AppLogo = ({ className }: { className?: string }) => (
     xmlns="http://www.w3.org/2000/svg"
     fill="currentColor"
   >
-    <title>IntelliContact Logo</title>
+    <title>Logo IntelliContato</title>
     {/* A simple abstract logo: a speech bubble with a gear inside representing intelligent communication */}
     <path d="M85,20 A15,15 0 0,0 70,5 H30 A15,15 0 0,0 15,20 V50 A15,15 0 0,0 30,65 H45 L50,75 L55,65 H70 A15,15 0 0,0 85,50 V20 Z" />
     {/* Gear shape */}

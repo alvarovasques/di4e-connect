@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from 'lucide-react';
 import { LayoutDashboard, MessageCircle, Users, Settings, LifeBuoy, Bot, BookOpen, Share2, BarChart3 } from 'lucide-react';
 
@@ -10,33 +11,33 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Overview' },
-  { path: '/chat', label: 'Chat', icon: MessageCircle, section: 'Workspace' },
-  { path: '/queues', label: 'Queues', icon: Share2, section: 'Workspace' },
+  { path: '/dashboard', label: 'Painel', icon: LayoutDashboard, section: 'Visão Geral' },
+  { path: '/chat', label: 'Chat', icon: MessageCircle, section: 'Área de Trabalho' },
+  { path: '/queues', label: 'Filas', icon: Share2, section: 'Área de Trabalho' },
   { 
     path: '/knowledge-base', 
-    label: 'Knowledge Base', 
+    label: 'Base de Conhecimento', 
     icon: BookOpen, 
-    section: 'Resources' 
+    section: 'Recursos' 
   },
   { 
     path: '/reports', 
-    label: 'Reports', 
+    label: 'Relatórios', 
     icon: BarChart3, 
-    section: 'Analysis' 
+    section: 'Análise' 
   },
   { 
     path: '/admin', 
     label: 'Admin', 
     icon: Settings, 
-    section: 'Configuration',
+    section: 'Configuração',
     subItems: [
-      { path: '/admin/users', label: 'Users', icon: Users },
-      { path: '/admin/roles', label: 'Roles & Permissions', icon: Users },
-      { path: '/admin/ai-settings', label: 'AI Settings', icon: Bot },
+      { path: '/admin/users', label: 'Usuários', icon: Users },
+      { path: '/admin/roles', label: 'Cargos e Permissões', icon: Users },
+      { path: '/admin/ai-settings', label: 'Configurações de IA', icon: Bot },
     ]
   },
-  { path: '/support', label: 'Support', icon: LifeBuoy, section: 'Help' },
+  { path: '/support', label: 'Suporte', icon: LifeBuoy, section: 'Ajuda' },
 ];
 
-export const APP_NAME = "IntelliContact";
+export const APP_NAME = "IntelliContato";

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -8,29 +9,31 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import AppLogo from '@/components/icons/app-logo';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ChevronDownIcon } from 'lucide-react';
 
 const MainSidebar = () => {
   const pathname = usePathname();
 
   const renderNavItem = (item: NavItem, isSubItem = false) => {
-    const isActive = pathname === item.path || (item.path !== '/' && pathname.startsWith(item.path));
+    const isActive = item.path === '/' ? pathname === '/' : pathname.startsWith(item.path);
     
     if (item.subItems && item.subItems.length > 0) {
+      // Determine if any sub-item is active to keep the accordion open
+      const isParentActive = item.subItems.some(sub => pathname.startsWith(sub.path));
+      const defaultAccordionValue = isParentActive ? [item.path] : [];
+      
       return (
         <AccordionItem value={item.path} key={item.path} className="border-none">
           <AccordionTrigger 
             className={cn(
               "w-full flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
-              isActive && !isSubItem ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-sidebar-foreground",
-              isSubItem && "pl-8"
+              isParentActive && !isSubItem ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-sidebar-foreground",
+              isSubItem && "pl-8" 
             )}
           >
             <div className="flex items-center gap-3">
-              <item.icon className={cn("h-5 w-5", isActive ? "text-primary-foreground" : "text-primary")} />
-              <span className={cn(isActive && !isSubItem ? "font-semibold" : "")}>{item.label}</span>
+              <item.icon className={cn("h-5 w-5", isParentActive ? "text-primary-foreground" : "text-primary")} />
+              <span className={cn(isParentActive && !isSubItem ? "font-semibold" : "")}>{item.label}</span>
             </div>
-            {/* Chevron will be part of AccordionTrigger */}
           </AccordionTrigger>
           <AccordionContent className="pt-1">
             <nav className="flex flex-col gap-1">
@@ -45,13 +48,13 @@ const MainSidebar = () => {
       <Button
         key={item.path}
         asChild
-        variant={isActive ? 'default' : 'ghost'}
+        variant={'ghost'}
         className={cn(
           "w-full justify-start gap-3",
           isSubItem && "pl-8 py-1.5 h-auto text-xs",
           !isSubItem && "py-2 h-auto text-sm",
           isActive && isSubItem ? "bg-primary/10 text-primary font-semibold" : "",
-          isActive && !isSubItem ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
+          isActive && !isSubItem ? "bg-primary text-primary-foreground hover:bg-primary/90" : "hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
           !isActive && "text-sidebar-foreground"
         )}
       >
@@ -64,13 +67,15 @@ const MainSidebar = () => {
   };
 
   const groupedNavItems = NAV_ITEMS.reduce((acc, item) => {
-    const section = item.section || 'General';
+    const section = item.section || 'Geral';
     if (!acc[section]) {
       acc[section] = [];
     }
     acc[section].push(item);
     return acc;
   }, {} as Record<string, NavItem[]>);
+  
+  const activeAccordionItems = NAV_ITEMS.filter(item => item.subItems && item.subItems.some(sub => pathname.startsWith(sub.path))).map(item => item.path);
 
   return (
     <aside className="fixed inset-y-0 left-0 z-10 flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar">
@@ -81,7 +86,7 @@ const MainSidebar = () => {
         </Link>
       </div>
       <ScrollArea className="flex-1">
-        <Accordion type="multiple" className="w-full px-3 py-4">
+        <Accordion type="multiple" className="w-full px-3 py-4" defaultValue={activeAccordionItems}>
           {Object.entries(groupedNavItems).map(([section, items]) => (
             <div key={section} className="mb-4">
               <h3 className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground tracking-wider">{section}</h3>
@@ -93,9 +98,8 @@ const MainSidebar = () => {
         </Accordion>
       </ScrollArea>
       <div className="mt-auto border-t border-sidebar-border p-4">
-        {/* Placeholder for user profile or logout */}
-        <Button variant="outline" className="w-full">
-          User Profile
+        <Button variant="outline" className="w-full text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground">
+          Perfil do Usuário
         </Button>
       </div>
     </aside>

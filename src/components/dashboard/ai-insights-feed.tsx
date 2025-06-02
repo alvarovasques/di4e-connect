@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { AiInsight } from '@/types';
@@ -16,7 +17,7 @@ const getInsightIcon = (type: AiInsight['type']) => {
     case 'PERFORMANCE': return <Zap className="h-4 w-4" />;
     case 'TRAINING': return <Lightbulb className="h-4 w-4" />;
     case 'PROCESS': return <AlertTriangle className="h-4 w-4" />;
-    case 'SATISFACTION': return <Zap className="h-4 w-4" />; // Re-using Zap for now
+    case 'SATISFACTION': return <Zap className="h-4 w-4" />; 
     default: return <Lightbulb className="h-4 w-4" />;
   }
 };
@@ -24,23 +25,43 @@ const getInsightIcon = (type: AiInsight['type']) => {
 const getPriorityBadgeVariant = (priority: AiInsight['priority']): 'default' | 'secondary' | 'destructive' => {
   switch (priority) {
     case 'HIGH': return 'destructive';
-    case 'MEDIUM': return 'default'; // 'default' uses primary color, which might be good for medium
+    case 'MEDIUM': return 'default'; 
     case 'LOW': return 'secondary';
     default: return 'secondary';
   }
 };
 
+const translateInsightType = (type: AiInsight['type']): string => {
+  switch (type) {
+    case 'PERFORMANCE': return 'DESEMPENHO';
+    case 'TRAINING': return 'TREINAMENTO';
+    case 'PROCESS': return 'PROCESSO';
+    case 'SATISFACTION': return 'SATISFAÇÃO';
+    default: return type;
+  }
+};
+
+const translatePriority = (priority: AiInsight['priority']): string => {
+  switch (priority) {
+    case 'HIGH': return 'ALTA';
+    case 'MEDIUM': return 'MÉDIA';
+    case 'LOW': return 'BAIXA';
+    default: return priority;
+  }
+};
+
+
 const AiInsightsFeed = ({ insights }: AiInsightsFeedProps) => {
   return (
     <Card className="shadow-lg h-full flex flex-col">
       <CardHeader>
-        <CardTitle className="font-headline text-xl">AI Insights & Alerts</CardTitle>
-        <CardDescription>Actionable recommendations from our AI engine.</CardDescription>
+        <CardTitle className="font-headline text-xl">Insights e Alertas de IA</CardTitle>
+        <CardDescription>Recomendações acionáveis do nosso motor de IA.</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden">
         <ScrollArea className="h-full pr-4">
           {insights.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No insights available at the moment.</p>
+            <p className="text-muted-foreground text-center py-8">Nenhum insight disponível no momento.</p>
           ) : (
             <div className="space-y-4">
               {insights.map((insight) => (
@@ -50,11 +71,11 @@ const AiInsightsFeed = ({ insights }: AiInsightsFeedProps) => {
                       <span className="text-primary">{getInsightIcon(insight.type)}</span>
                       <h4 className="font-semibold text-md text-foreground">{insight.title}</h4>
                     </div>
-                    <Badge variant={getPriorityBadgeVariant(insight.priority)}>{insight.priority}</Badge>
+                    <Badge variant={getPriorityBadgeVariant(insight.priority)}>{translatePriority(insight.priority)}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">{insight.content}</p>
                   <p className="text-xs text-muted-foreground/70">
-                    {new Date(insight.createdAt).toLocaleDateString()} - {insight.type}
+                    {new Date(insight.createdAt).toLocaleDateString('pt-BR')} - {translateInsightType(insight.type)}
                   </p>
                 </div>
               ))}

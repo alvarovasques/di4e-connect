@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { User } from '@/types';
@@ -37,6 +38,16 @@ const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) 
     user.userType.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const translateUserType = (userType: User['userType']): string => {
+    switch (userType) {
+      case 'ADMIN': return 'Administrador';
+      case 'SUPERVISOR': return 'Supervisor';
+      case 'AGENT_HUMAN': return 'Agente Humano';
+      case 'AGENT_AI': return 'Agente IA';
+      case 'VIEWER': return 'Visualizador';
+      default: return userType.replace('_', ' ');
+    }
+  };
 
   const getUserTypeBadgeVariant = (userType: User['userType']): 'default' | 'secondary' | 'outline' | 'destructive' => {
     switch (userType) {
@@ -49,33 +60,32 @@ const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) 
     }
   };
   
-  // Placeholder functions for actions
-  const handleEditUser = (userId: string) => alert(`Edit user: ${userId}`);
+  const handleEditUser = (userId: string) => alert(`Editar usuário: ${userId}`);
   const handleDeleteUser = (userId: string) => {
-    if(confirm(`Are you sure you want to delete user ${userId}?`)) {
+    if(confirm(`Tem certeza que deseja excluir o usuário ${userId}?`)) {
       setUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
-      alert(`User deleted: ${userId}`);
+      alert(`Usuário excluído: ${userId}`);
     }
   };
-  const handleAddUser = () => alert('Add new user');
+  const handleAddUser = () => alert('Adicionar novo usuário');
 
 
   return (
     <Card className="shadow-lg">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="font-headline text-xl">User Management</CardTitle>
-          <CardDescription>Manage all users in the system.</CardDescription>
+          <CardTitle className="font-headline text-xl">Gerenciamento de Usuários</CardTitle>
+          <CardDescription>Gerencie todos os usuários no sistema.</CardDescription>
         </div>
         <div className="flex items-center gap-2">
           <Input 
-            placeholder="Search users..." 
+            placeholder="Pesquisar usuários..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
           <Button onClick={handleAddUser} className="bg-primary hover:bg-primary/90">
-            <UserPlus className="mr-2 h-4 w-4" /> Add User
+            <UserPlus className="mr-2 h-4 w-4" /> Adicionar Usuário
           </Button>
         </div>
       </CardHeader>
@@ -83,11 +93,11 @@ const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead>Cargo</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -104,11 +114,10 @@ const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) 
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
-                  <Badge variant={getUserTypeBadgeVariant(user.userType)}>{user.userType.replace('_', ' ')}</Badge>
+                  <Badge variant={getUserTypeBadgeVariant(user.userType)}>{translateUserType(user.userType)}</Badge>
                 </TableCell>
                 <TableCell>
-                  {/* Assuming all mock users are active */}
-                  <Badge variant="secondary" className="bg-green-100 text-green-700">Active</Badge>
+                  <Badge variant="secondary" className="bg-green-100 text-green-700">Ativo</Badge>
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -119,10 +128,10 @@ const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) 
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => handleEditUser(user.id)}>
-                        <Edit className="mr-2 h-4 w-4" /> Edit
+                        <Edit className="mr-2 h-4 w-4" /> Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDeleteUser(user.id)} className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -132,7 +141,7 @@ const UserManagementTable = ({ users: initialUsers }: UserManagementTableProps) 
              {filteredUsers.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  No users found.
+                  Nenhum usuário encontrado.
                 </TableCell>
               </TableRow>
             )}

@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Chat } from '@/types';
@@ -28,7 +29,7 @@ const ChatList = ({ chats, activeChatId, onSelectChat }: ChatListProps) => {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input 
             type="search" 
-            placeholder="Search chats..." 
+            placeholder="Pesquisar chats..." 
             className="pl-8 w-full rounded-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -47,7 +48,7 @@ const ChatList = ({ chats, activeChatId, onSelectChat }: ChatListProps) => {
               />
             ))
           ) : (
-            <p className="p-4 text-center text-sm text-muted-foreground">No chats found.</p>
+            <p className="p-4 text-center text-sm text-muted-foreground">Nenhum chat encontrado.</p>
           )}
         </nav>
       </ScrollArea>

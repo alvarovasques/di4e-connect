@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Chat } from '@/types';
@@ -5,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 type ChatListItemProps = {
   chat: Chat;
@@ -32,7 +34,7 @@ const ChatListItem = ({ chat, isActive, onClick }: ChatListItemProps) => {
         <div className="flex items-center justify-between">
           <h3 className={cn("truncate font-semibold text-sm", isActive ? "text-primary" : "text-foreground")}>{chat.customerName}</h3>
           <span className="text-xs text-muted-foreground">
-            {formatDistanceToNowStrict(new Date(chat.lastActivity), { addSuffix: true })}
+            {formatDistanceToNowStrict(new Date(chat.lastActivity), { addSuffix: true, locale: ptBR })}
           </span>
         </div>
         <p className={cn("truncate text-xs", isActive ? "text-primary/80" : "text-muted-foreground")}>

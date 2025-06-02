@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -25,6 +26,8 @@ import { useToast } from '@/hooks/use-toast';
 import { analyzeSentiment } from '@/ai/flows/sentiment-analysis';
 import { suggestKnowledgeBaseArticles } from '@/ai/flows/knowledge-base-suggestions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 type ActiveChatAreaProps = {
   chat: Chat | null;
@@ -65,7 +68,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     try {
       const chatContent = currentMessages.map(m => `${m.sender}: ${m.content}`).join('\n');
       
-      // Fetch KB suggestions
       const kbSuggestions = await suggestKnowledgeBaseArticles({
         chatContent,
         knowledgeBaseArticles: MOCK_KB_ARTICLES,
@@ -73,13 +75,11 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       setSuggestedArticles(kbSuggestions.map(s => ({
         ...MOCK_KB_ARTICLES.find(kb => kb.id === s.id)!,
         relevanceScore: s.relevanceScore,
-      })).slice(0, 3)); // Take top 3
+      })).slice(0, 3)); 
 
-      // Analyze sentiment of last customer message
       const lastCustomerMessage = [...currentMessages].reverse().find(m => m.sender === 'customer');
       if (lastCustomerMessage) {
         const sentimentResult = await analyzeSentiment({ text: lastCustomerMessage.content });
-        // Update message with sentiment or display globally for chat
         setMessages(prevMessages => prevMessages.map(m => 
             m.id === lastCustomerMessage.id ? { ...m, sentimentScore: sentimentResult.sentimentScore } : m
         ));
@@ -90,7 +90,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
     } catch (error) {
       console.error("AI suggestion error:", error);
-      toast({ title: "AI Error", description: "Could not fetch AI suggestions.", variant: "destructive" });
+      toast({ title: "Erro de IA", description: "Não foi possível buscar sugestões da IA.", variant: "destructive" });
     }
     setIsLoadingAi(false);
   };
@@ -102,7 +102,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       chatId: chat.id,
       content,
       type,
-      sender: 'agent', // Assuming current user is an agent
+      sender: 'agent', 
       senderId: MOCK_CURRENT_USER.id,
       senderName: MOCK_CURRENT_USER.name,
       timestamp: new Date(),
@@ -110,7 +110,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     };
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
-    fetchAiSuggestions(updatedMessages); // Re-fetch suggestions on new message
+    fetchAiSuggestions(updatedMessages); 
   };
 
   const handleSendWhisperNote = (note: string) => {
@@ -124,21 +124,21 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       timestamp: new Date(),
     };
     setWhisperNotes([...whisperNotes, newWhisperNote]);
-    toast({ title: "Whisper note sent", description: "Your internal note has been added." });
+    toast({ title: "Nota interna enviada", description: "Sua nota interna foi adicionada." });
   };
 
   const handleTransferChat = (targetType: 'queue' | 'agent', targetId: string) => {
+    const targetTypePt = targetType === 'queue' ? 'fila' : 'agente';
     toast({
-      title: "Chat Transfer Initiated",
-      description: `Chat transfer to ${targetType} ID: ${targetId} has been requested.`,
+      title: "Transferência de Chat Iniciada",
+      description: `A transferência do chat para ${targetTypePt} ID: ${targetId} foi solicitada.`,
     });
-    // Implement actual transfer logic here
   };
   
   const handleSelectKbArticle = (article: KnowledgeBaseArticle) => {
     toast({
-      title: `Selected KB: ${article.title}`,
-      description: "Article details would be shown or content pasted.",
+      title: `BC Selecionado: ${article.title}`,
+      description: "Detalhes do artigo seriam mostrados ou conteúdo colado.",
     });
   };
 
@@ -146,8 +146,8 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-muted/30 p-8">
         <MessageSquareQuote className="h-16 w-16 text-muted-foreground/50 mb-4" />
-        <p className="text-lg text-muted-foreground">Select a chat to start messaging</p>
-        <p className="text-sm text-muted-foreground/80">Your conversations will appear here.</p>
+        <p className="text-lg text-muted-foreground">Selecione um chat para começar a conversar</p>
+        <p className="text-sm text-muted-foreground/80">Suas conversas aparecerão aqui.</p>
       </div>
     );
   }
@@ -156,9 +156,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
   return (
     <div className="flex h-full max-h-screen">
-      {/* Main Chat Area */}
       <div className="flex flex-1 flex-col bg-background">
-        {/* Chat Header */}
         <header className="flex items-center justify-between border-b p-3 md:p-4">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10 border">
@@ -170,7 +168,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
             <div>
               <h2 className="font-semibold text-foreground">{chat.customerName}</h2>
               <p className="text-xs text-muted-foreground">
-                {chat.status === 'IN_PROGRESS' && assignedAgent ? `Chatting with ${assignedAgent.name}` : chat.status}
+                {chat.status === 'IN_PROGRESS' && assignedAgent ? `Conversando com ${assignedAgent.name}` : chat.status}
               </p>
             </div>
           </div>
@@ -185,8 +183,8 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                 <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>View Contact Info</DropdownMenuItem>
-                <DropdownMenuItem>Block User</DropdownMenuItem>
+                <DropdownMenuItem>Ver Informações de Contato</DropdownMenuItem>
+                <DropdownMenuItem>Bloquear Usuário</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                     <ChatTransferDialog 
@@ -195,13 +193,12 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                         onTransfer={handleTransferChat} 
                     />
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">End Chat</DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">Encerrar Chat</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </header>
 
-        {/* Messages Area */}
         <ScrollArea className="flex-1 p-3 md:p-4" ref={scrollAreaRef}>
           <div className="space-y-4">
             {messages.map((msg) => (
@@ -211,35 +208,33 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
           </div>
         </ScrollArea>
 
-        {/* Message Input */}
         <MessageInputArea onSendMessage={handleSendMessage} disabled={chat.status === 'RESOLVED' || chat.status === 'CLOSED'} />
       </div>
       
-      {/* Sidebar for Details, Notes, KB - only for Supervisor/Agent */}
       {(MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'AGENT_HUMAN') && (
         <aside className="hidden lg:flex w-80 flex-col border-l bg-muted/20">
           <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
             <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
-              <TabsTrigger value="details"><Info className="h-4 w-4"/> Details</TabsTrigger>
-              <TabsTrigger value="notes"><MessageSquareQuote className="h-4 w-4"/> Notes</TabsTrigger>
-              <TabsTrigger value="kb"><BookOpen className="h-4 w-4"/> KB</TabsTrigger>
+              <TabsTrigger value="details"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
+              <TabsTrigger value="notes"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
+              <TabsTrigger value="kb"><BookOpen className="h-4 w-4"/> BC</TabsTrigger>
             </TabsList>
             
             <TabsContent value="details" className="flex-1 overflow-y-auto p-0">
               <ScrollArea className="h-full">
                 <div className="p-4 space-y-4">
                   <Card>
-                    <CardHeader><CardTitle className="text-base">Customer Details</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-base">Detalhes do Cliente</CardTitle></CardHeader>
                     <CardContent className="text-sm space-y-1">
-                      <p><strong>Name:</strong> {chat.customerName}</p>
-                      <p><strong>Phone:</strong> {chat.customerPhone}</p>
-                      <p><strong>Queue:</strong> {MOCK_QUEUES.find(q => q.id === chat.queueId)?.name || 'N/A'}</p>
-                      <p><strong>Priority:</strong> <span className={`font-semibold ${chat.priority === 'HIGH' || chat.priority === 'URGENT' ? 'text-destructive' : ''}`}>{chat.priority}</span></p>
+                      <p><strong>Nome:</strong> {chat.customerName}</p>
+                      <p><strong>Telefone:</strong> {chat.customerPhone}</p>
+                      <p><strong>Fila:</strong> {MOCK_QUEUES.find(q => q.id === chat.queueId)?.name || 'N/D'}</p>
+                      <p><strong>Prioridade:</strong> <span className={`font-semibold ${chat.priority === 'HIGH' || chat.priority === 'URGENT' ? 'text-destructive' : ''}`}>{chat.priority}</span></p>
                     </CardContent>
                   </Card>
                    {chat.aiAnalysis && (
                     <Card>
-                      <CardHeader><CardTitle className="text-base">AI Analysis</CardTitle></CardHeader>
+                      <CardHeader><CardTitle className="text-base">Análise de IA</CardTitle></CardHeader>
                       <CardContent>
                         <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} />
                       </CardContent>
@@ -251,10 +246,10 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
             <TabsContent value="notes" className="flex-1 flex flex-col overflow-hidden">
               <ScrollArea className="flex-1 p-4 space-y-3">
-                {whisperNotes.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No internal notes yet.</p>}
+                {whisperNotes.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma nota interna ainda.</p>}
                 {whisperNotes.map(note => (
                   <div key={note.id} className="text-xs p-2 rounded bg-yellow-100 border border-yellow-200 text-yellow-800">
-                    <p className="font-semibold">{note.userName} ({format(new Date(note.timestamp), 'PPp')})</p>
+                    <p className="font-semibold">{note.userName} ({format(new Date(note.timestamp), 'PPp', { locale: ptBR })})</p>
                     <p>{note.note}</p>
                   </div>
                 ))}
@@ -267,7 +262,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
             <TabsContent value="kb" className="flex-1 overflow-y-auto p-0">
                <ScrollArea className="h-full p-4 space-y-3">
                 {isLoadingAi && !suggestedArticles.length && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin text-primary"/></div>}
-                {!isLoadingAi && suggestedArticles.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No relevant articles found.</p>}
+                {!isLoadingAi && suggestedArticles.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum artigo relevante encontrado.</p>}
                 {suggestedArticles.map(article => (
                   <KnowledgeBaseSuggestionItem key={article.id} article={article} onSelectArticle={handleSelectKbArticle} />
                 ))}

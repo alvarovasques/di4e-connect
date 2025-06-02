@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, FormEvent } from 'react';
@@ -28,12 +29,12 @@ const MessageInputArea = ({ onSendMessage, disabled }: MessageInputAreaProps) =>
     >
       <Button variant="ghost" size="icon" type="button" disabled={disabled} className="shrink-0">
         <Paperclip className="h-5 w-5 text-muted-foreground" />
-        <span className="sr-only">Attach file</span>
+        <span className="sr-only">Anexar arquivo</span>
       </Button>
       <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Type your message..."
+        placeholder="Digite sua mensagem..."
         className="flex-1 resize-none border-border focus-visible:ring-primary min-h-[40px]"
         rows={1}
         onKeyDown={(e) => {
@@ -43,15 +44,15 @@ const MessageInputArea = ({ onSendMessage, disabled }: MessageInputAreaProps) =>
           }
         }}
         disabled={disabled}
-        aria-label="Message input"
+        aria-label="Entrada de mensagem"
       />
       <Button variant="ghost" size="icon" type="button" disabled={disabled} className="shrink-0">
         <Mic className="h-5 w-5 text-muted-foreground" />
-        <span className="sr-only">Record audio</span>
+        <span className="sr-only">Gravar áudio</span>
       </Button>
       <Button type="submit" size="icon" disabled={disabled || !message.trim()} className="shrink-0 bg-primary hover:bg-primary/90">
         <SendHorizonal className="h-5 w-5" />
-        <span className="sr-only">Send message</span>
+        <span className="sr-only">Enviar mensagem</span>
       </Button>
     </form>
   );

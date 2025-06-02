@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { PerformanceData } from '@/types';
@@ -14,7 +15,7 @@ type PerformanceChartProps = {
 
 const chartConfig = {
   value: {
-    label: "Value",
+    label: "Valor", // Translated from "Value"
     color: "hsl(var(--primary))",
   },
 } satisfies ChartConfig;

@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { KnowledgeBaseArticle } from '@/types';
@@ -16,8 +17,8 @@ const KnowledgeBaseSuggestionItem = ({ article, onSelectArticle }: KnowledgeBase
   const handleCopySummary = () => {
     navigator.clipboard.writeText(article.summary || article.content.substring(0, 200));
     toast({
-      title: "Copied to clipboard",
-      description: `Summary of "${article.title}" copied.`,
+      title: "Copiado para a área de transferência",
+      description: `Resumo de "${article.title}" copiado.`,
     });
   };
 
@@ -30,7 +31,7 @@ const KnowledgeBaseSuggestionItem = ({ article, onSelectArticle }: KnowledgeBase
         </h5>
         {article.relevanceScore && (
           <span className="text-xs text-primary font-medium">
-            Relevance: {(article.relevanceScore * 100).toFixed(0)}%
+            Relevância: {(article.relevanceScore * 100).toFixed(0)}%
           </span>
         )}
       </div>
@@ -39,10 +40,10 @@ const KnowledgeBaseSuggestionItem = ({ article, onSelectArticle }: KnowledgeBase
       </p>
       <div className="flex gap-2">
         <Button variant="outline" size="xs" onClick={() => onSelectArticle(article)} className="text-xs">
-          View Details
+          Ver Detalhes
         </Button>
         <Button variant="ghost" size="xs" onClick={handleCopySummary} className="text-xs">
-          <Copy className="h-3 w-3 mr-1" /> Copy Summary
+          <Copy className="h-3 w-3 mr-1" /> Copiar Resumo
         </Button>
       </div>
     </div>

@@ -1,3 +1,4 @@
+
 import type { Metric } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown } from 'lucide-react';
@@ -23,7 +24,7 @@ const MetricCard = ({ metric, icon: Icon }: MetricCardProps) => {
             metric.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
           )}>
             {metric.changeType === 'positive' ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-            {metric.change} from last period
+            {metric.change} do período anterior
           </p>
         )}
       </CardContent>

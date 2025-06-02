@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Message } from '@/types';
@@ -5,11 +6,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import SentimentDisplay from './sentiment-display';
 
 type MessageBubbleProps = {
   message: Message;
-  senderUser?: { name: string; avatarUrl?: string }; // For agent/AI
+  senderUser?: { name: string; avatarUrl?: string }; 
 };
 
 const MessageBubble = ({ message, senderUser }: MessageBubbleProps) => {
@@ -19,8 +21,8 @@ const MessageBubble = ({ message, senderUser }: MessageBubbleProps) => {
     ? 'bg-primary text-primary-foreground rounded-br-none'
     : 'bg-muted text-foreground rounded-bl-none';
   
-  const senderName = isUser ? (senderUser?.name || message.senderName || 'Agent') : (message.senderName || 'Customer');
-  const avatarUrl = isUser ? senderUser?.avatarUrl : undefined; // Assuming customer doesn't have avatar in bubble
+  const senderNameDisplay = isUser ? (senderUser?.name || message.senderName || 'Agente') : (message.senderName || 'Cliente');
+  const avatarUrl = isUser ? senderUser?.avatarUrl : undefined; 
 
   return (
     <div className={cn("flex flex-col gap-1 py-2", alignClass)}>
@@ -29,7 +31,7 @@ const MessageBubble = ({ message, senderUser }: MessageBubbleProps) => {
            <Avatar className="h-8 w-8 border">
             <AvatarImage src={avatarUrl} data-ai-hint="person avatar" />
             <AvatarFallback className="text-xs bg-muted-foreground/20">
-              {senderName.substring(0, 1).toUpperCase()}
+              {senderNameDisplay.substring(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         )}
@@ -40,7 +42,7 @@ const MessageBubble = ({ message, senderUser }: MessageBubbleProps) => {
         </Card>
       </div>
       <div className={cn("text-xs text-muted-foreground/80 px-1", isUser ? "text-right" : "text-left ml-10")}>
-        <span>{senderName}</span> &middot; <span>{format(new Date(message.timestamp), 'p')}</span>
+        <span>{senderNameDisplay}</span> &middot; <span>{format(new Date(message.timestamp), 'p', { locale: ptBR })}</span>
         {message.sender === 'customer' && message.sentimentScore !== undefined && (
            <SentimentDisplay score={message.sentimentScore} confidence={1} simple small />
         )}

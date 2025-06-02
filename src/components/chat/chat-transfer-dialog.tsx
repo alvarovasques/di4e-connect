@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -18,7 +19,7 @@ import { Share2 } from 'lucide-react';
 
 type ChatTransferDialogProps = {
   queues: Queue[];
-  agents: User[]; // Agents available for transfer
+  agents: User[]; 
   onTransfer: (targetType: 'queue' | 'agent', targetId: string) => void;
 };
 
@@ -42,28 +43,28 @@ const ChatTransferDialog = ({ queues, agents, onTransfer }: ChatTransferDialogPr
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Share2 className="mr-2 h-4 w-4" />
-          Transfer Chat
+          Transferir Chat
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Transfer Chat</DialogTitle>
+          <DialogTitle>Transferir Chat</DialogTitle>
           <DialogDescription>
-            Select a queue or agent to transfer this chat to.
+            Selecione uma fila ou agente para transferir este chat.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="transfer-type" className="text-right">
-              Transfer To
+              Transferir Para
             </Label>
             <Select value={transferTo} onValueChange={(value) => setTransferTo(value as 'queue' | 'agent')}>
               <SelectTrigger id="transfer-type" className="col-span-3">
-                <SelectValue placeholder="Select type" />
+                <SelectValue placeholder="Selecionar tipo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="queue">Queue</SelectItem>
-                <SelectItem value="agent">Agent</SelectItem>
+                <SelectItem value="queue">Fila</SelectItem>
+                <SelectItem value="agent">Agente</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -71,11 +72,11 @@ const ChatTransferDialog = ({ queues, agents, onTransfer }: ChatTransferDialogPr
           {transferTo === 'queue' && (
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="queue-select" className="text-right">
-                Queue
+                Fila
               </Label>
               <Select value={selectedQueue} onValueChange={setSelectedQueue}>
                 <SelectTrigger id="queue-select" className="col-span-3">
-                  <SelectValue placeholder="Select a queue" />
+                  <SelectValue placeholder="Selecione uma fila" />
                 </SelectTrigger>
                 <SelectContent>
                   {queues.filter(q => q.isActive).map((queue) => (
@@ -91,11 +92,11 @@ const ChatTransferDialog = ({ queues, agents, onTransfer }: ChatTransferDialogPr
           {transferTo === 'agent' && (
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="agent-select" className="text-right">
-                Agent
+                Agente
               </Label>
               <Select value={selectedAgent} onValueChange={setSelectedAgent}>
                 <SelectTrigger id="agent-select" className="col-span-3">
-                  <SelectValue placeholder="Select an agent" />
+                  <SelectValue placeholder="Selecione um agente" />
                 </SelectTrigger>
                 <SelectContent>
                   {agents.filter(a => a.userType === 'AGENT_HUMAN').map((agent) => (
@@ -109,13 +110,13 @@ const ChatTransferDialog = ({ queues, agents, onTransfer }: ChatTransferDialogPr
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
           <Button 
             onClick={handleTransfer} 
             disabled={transferTo === 'queue' ? !selectedQueue : !selectedAgent}
             className="bg-primary hover:bg-primary/90"
           >
-            Transfer
+            Transferir
           </Button>
         </DialogFooter>
       </DialogContent>

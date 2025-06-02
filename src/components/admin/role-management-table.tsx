@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Role } from '@/types';
@@ -35,32 +36,31 @@ const RoleManagementTable = ({ roles: initialRoles }: RoleManagementTableProps) 
     (role.description && role.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
   
-  // Placeholder functions for actions
-  const handleEditRole = (roleId: string) => alert(`Edit role: ${roleId}`);
+  const handleEditRole = (roleId: string) => alert(`Editar cargo: ${roleId}`);
   const handleDeleteRole = (roleId: string) => {
-     if(confirm(`Are you sure you want to delete role ${roleId}?`)) {
+     if(confirm(`Tem certeza que deseja excluir o cargo ${roleId}?`)) {
       setRoles(prevRoles => prevRoles.filter(r => r.id !== roleId));
-      alert(`Role deleted: ${roleId}`);
+      alert(`Cargo excluído: ${roleId}`);
     }
   };
-  const handleAddRole = () => alert('Add new role');
+  const handleAddRole = () => alert('Adicionar novo cargo');
 
   return (
     <Card className="shadow-lg">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="font-headline text-xl">Roles & Permissions</CardTitle>
-          <CardDescription>Manage user roles and their permissions.</CardDescription>
+          <CardTitle className="font-headline text-xl">Cargos e Permissões</CardTitle>
+          <CardDescription>Gerencie cargos de usuário e suas permissões.</CardDescription>
         </div>
         <div className="flex items-center gap-2">
            <Input 
-            placeholder="Search roles..." 
+            placeholder="Pesquisar cargos..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
           <Button onClick={handleAddRole} className="bg-primary hover:bg-primary/90">
-            <ShieldPlus className="mr-2 h-4 w-4" /> Add Role
+            <ShieldPlus className="mr-2 h-4 w-4" /> Adicionar Cargo
           </Button>
         </div>
       </CardHeader>
@@ -68,24 +68,24 @@ const RoleManagementTable = ({ roles: initialRoles }: RoleManagementTableProps) 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Role Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Permissions</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Nome do Cargo</TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Permissões</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredRoles.map((role) => (
               <TableRow key={role.id}>
                 <TableCell className="font-medium">{role.name}</TableCell>
-                <TableCell className="text-muted-foreground">{role.description || 'N/A'}</TableCell>
+                <TableCell className="text-muted-foreground">{role.description || 'N/D'}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {role.permissions.slice(0, 3).map((permission) => (
                       <Badge key={permission} variant="secondary">{permission.replace(/_/g, ' ')}</Badge>
                     ))}
                     {role.permissions.length > 3 && (
-                      <Badge variant="outline">+{role.permissions.length - 3} more</Badge>
+                      <Badge variant="outline">+{role.permissions.length - 3} mais</Badge>
                     )}
                   </div>
                 </TableCell>
@@ -98,10 +98,10 @@ const RoleManagementTable = ({ roles: initialRoles }: RoleManagementTableProps) 
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => handleEditRole(role.id)}>
-                        <Edit className="mr-2 h-4 w-4" /> Edit
+                        <Edit className="mr-2 h-4 w-4" /> Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDeleteRole(role.id)} className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -111,7 +111,7 @@ const RoleManagementTable = ({ roles: initialRoles }: RoleManagementTableProps) 
             {filteredRoles.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  No roles found.
+                  Nenhum cargo encontrado.
                 </TableCell>
               </TableRow>
             )}
