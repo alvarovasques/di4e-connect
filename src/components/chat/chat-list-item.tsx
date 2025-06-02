@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { AlertTriangle } from 'lucide-react'; // Importar ícone de alerta
 
 type ChatListItemProps = {
   chat: Chat;
@@ -21,8 +22,10 @@ const ChatListItem = ({ chat, isActive, onClick }: ChatListItemProps) => {
     <button
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 p-3 text-left transition-colors duration-150 rounded-lg",
+        "flex w-full items-center gap-3 p-3 text-left transition-colors duration-150 rounded-lg relative", // Adicionado relative para posicionar o badge de SLA
         isActive ? "bg-primary/10" : "hover:bg-muted/50",
+        chat.slaBreached && chat.status === 'WAITING' && !isActive && "border-l-4 border-destructive",
+        chat.slaBreached && chat.status === 'WAITING' && isActive && "border-l-4 border-destructive"
       )}
       aria-current={isActive ? "page" : undefined}
     >
@@ -32,8 +35,13 @@ const ChatListItem = ({ chat, isActive, onClick }: ChatListItemProps) => {
       </Avatar>
       <div className="flex-1 overflow-hidden">
         <div className="flex items-center justify-between">
-          <h3 className={cn("truncate font-semibold text-sm", isActive ? "text-primary" : "text-foreground")}>{chat.customerName}</h3>
-          <span className="text-xs text-muted-foreground">
+          <h3 className={cn("truncate font-semibold text-sm flex items-center", isActive ? "text-primary" : "text-foreground")}>
+            {chat.customerName}
+            {chat.slaBreached && chat.status === 'WAITING' && (
+              <AlertTriangle className="ml-1.5 h-4 w-4 text-destructive flex-shrink-0" title="SLA Violado" />
+            )}
+          </h3>
+          <span className="text-xs text-muted-foreground shrink-0">
             {formatDistanceToNowStrict(new Date(chat.lastActivity), { addSuffix: true, locale: ptBR })}
           </span>
         </div>
@@ -42,7 +50,7 @@ const ChatListItem = ({ chat, isActive, onClick }: ChatListItemProps) => {
         </p>
       </div>
       {chat.unreadCount && chat.unreadCount > 0 && (
-        <Badge variant="default" className="flex h-5 w-5 items-center justify-center rounded-full p-0 text-xs bg-accent text-accent-foreground">
+        <Badge variant="default" className="flex h-5 w-5 items-center justify-center rounded-full p-0 text-xs bg-accent text-accent-foreground ml-auto shrink-0">
           {chat.unreadCount}
         </Badge>
       )}

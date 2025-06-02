@@ -23,7 +23,7 @@ export type Message = {
   senderId?: string; // Corresponds to User.id for agent/ai/system/supervisor
   senderName?: string; // Display name for sender
   timestamp: Date;
-  isFromCustomer: boolean; // Can be derived from sender type, but kept for explicitness
+  isFromCustomer: boolean; // Can be derived from sender type, mas kept for explicitness
   whatsappMessageId?: string;
   sentimentScore?: number; // Added for displaying sentiment per message
   targetAgentId?: string; // For whisper messages, to know who it's intended for
@@ -56,6 +56,7 @@ export type Chat = {
     confidenceIndex: number;
   };
   messages: Message[]; // Embed messages for simpler client-side handling in this example
+  slaBreached?: boolean; // Novo campo para indicar violação de SLA
 };
 
 export type KanbanColumnConfig = {
