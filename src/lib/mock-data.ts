@@ -4,7 +4,7 @@ import { ALL_PERMISSIONS } from '@/types';
 
 export const MOCK_USERS: User[] = [
   { id: 'user_1', name: 'Alice Silva', email: 'alice@example.com', userType: 'AGENT_HUMAN', avatarUrl: 'https://placehold.co/100x100/E6A4B4/white?text=AS', roleId: 'role_agent_human', teamId: 'team_suporte_geral', assignedQueueIds: ['queue_1', 'queue_2'] },
-  { id: 'user_2', name: 'Roberto Johnson', email: 'roberto@example.com', userType: 'SUPERVISOR', avatarUrl: 'https://placehold.co/100x100/A4E6B4/white?text=RJ', roleId: 'role_supervisor', teamId: 'team_suporte_geral', assignedQueueIds: ['queue_1', 'queue_2', 'queue_3'] },
+  { id: 'user_2', name: 'Roberto Johnson', email: 'roberto@example.com', userType: 'SUPERVISOR', avatarUrl: 'https://placehold.co/100x100/A4E6B4/white?text=RJ', roleId: 'role_supervisor', teamId: 'team_suporte_geral', assignedQueueIds: ['queue_1', 'queue_2', 'queue_3', 'queue_pre_atendimento'] },
   {
     id: 'user_3',
     name: 'Assistente IA Padrão',
@@ -14,13 +14,24 @@ export const MOCK_USERS: User[] = [
     llmPrompt: 'Você é um assistente de atendimento ao cliente amigável e eficiente. Responda às perguntas dos clientes de forma clara e concisa. Se não souber a resposta, diga que vai verificar e peça um momento.',
     aiModelName: 'gemini-1.5-flash',
     roleId: 'role_agent_ai', 
-    assignedQueueIds: ['queue_1'] 
+    assignedQueueIds: ['queue_1', 'queue_pre_atendimento'] 
   },
   { id: 'user_4', name: 'Carlos Brown', email: 'carlos@example.com', userType: 'ADMIN', avatarUrl: 'https://placehold.co/100x100/E6DCA4/white?text=CB', roleId: 'role_admin', teamId: 'team_devops' },
   { id: 'user_5', name: 'Viviane Lima', email: 'viviane@example.com', userType: 'VIEWER', avatarUrl: 'https://placehold.co/100x100/B4A4E6/white?text=VL', roleId: 'role_viewer' },
+  {
+    id: 'user_6',
+    name: 'Especialista IA Vendas',
+    email: 'ia_vendas@example.com',
+    userType: 'AGENT_AI',
+    avatarUrl: 'https://placehold.co/100x100/FADBD8/white?text=IV',
+    llmPrompt: 'Você é um especialista em vendas da IntelliContato. Seu objetivo é entender as necessidades do cliente e guiá-lo para a melhor solução de nossos produtos.',
+    aiModelName: 'gemini-1.5-flash',
+    roleId: 'role_agent_ai',
+    assignedQueueIds: ['queue_1']
+  },
 ];
 
-export const MOCK_CURRENT_USER: User = MOCK_USERS[1]; // Alterado para Roberto (Supervisor) para testar a página de filas
+export const MOCK_CURRENT_USER: User = MOCK_USERS[1]; // Roberto (Supervisor)
 
 
 const generateMessages = (chatId: string, count: number): Message[] => {
@@ -93,9 +104,9 @@ export const MOCK_CHATS: Chat[] = [
     whatsappId: 'whatsapp:11223',
     customerName: 'Pedro Pereira',
     customerPhone: '+15551122334',
-    queueId: 'queue_1', // Suporte de Vendas
-    assignedTo: MOCK_USERS[2].id, // Assistente IA
-    status: 'IN_PROGRESS', // Mudado para IN_PROGRESS para aparecer no Kanban
+    queueId: 'queue_pre_atendimento', // Alterado para fila de pré-atendimento
+    assignedTo: MOCK_USERS[2].id, // Assistente IA Padrão
+    status: 'IN_PROGRESS', 
     priority: 'LOW',
     createdAt: new Date(Date.now() - 3600000 * 5),
     updatedAt: new Date(Date.now() - 3600000 * 1),
@@ -145,7 +156,22 @@ export const MOCK_CHATS: Chat[] = [
 ];
 
 export const MOCK_QUEUES: Queue[] = [
-  { id: 'queue_1', name: 'Suporte de Vendas', description: 'Lida com consultas de vendas', isActive: true, kanbanColumns: DEFAULT_KANBAN_COLUMNS },
+  { 
+    id: 'queue_pre_atendimento', 
+    name: 'Fila de Pré-atendimento', 
+    description: 'Primeiro contato e triagem inicial por IA.', 
+    isActive: true, 
+    kanbanColumns: DEFAULT_KANBAN_COLUMNS,
+    defaultAiAgentId: MOCK_USERS.find(u => u.name === 'Assistente IA Padrão')?.id // user_3
+  },
+  { 
+    id: 'queue_1', 
+    name: 'Suporte de Vendas', 
+    description: 'Lida com consultas de vendas', 
+    isActive: true, 
+    kanbanColumns: DEFAULT_KANBAN_COLUMNS,
+    defaultAiAgentId: MOCK_USERS.find(u => u.name === 'Especialista IA Vendas')?.id // user_6
+  },
   { id: 'queue_2', name: 'Suporte Técnico', description: 'Lida com problemas técnicos', isActive: true, kanbanColumns: DEFAULT_KANBAN_COLUMNS },
   { id: 'queue_3', name: 'Faturamento', description: 'Lida com questões de faturamento', isActive: true, kanbanColumns: DEFAULT_KANBAN_COLUMNS }, 
 ];

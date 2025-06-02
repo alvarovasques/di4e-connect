@@ -90,7 +90,9 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
   const { toast } = useToast();
   const { queueId } = params;
 
-  const [allQueues, setAllQueues] = useState<Queue[]>(MOCK_QUEUES); // Em app real, seria buscado ou viria de contexto global
+  // Para este protótipo, MOCK_QUEUES é a fonte da verdade. Em um app real, 
+  // você pode precisar de um estado se as filas forem editáveis nesta página ou para evitar re-renders desnecessários.
+  const allQueues = MOCK_QUEUES; 
 
   const currentUserRole = MOCK_ROLES.find(role => role.id === MOCK_CURRENT_USER.roleId);
   const currentUserPermissions = useMemo(() => new Set(currentUserRole?.permissions || []), [currentUserRole]);
@@ -110,13 +112,18 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
 
 
   const chatsForCurrentQueue = useMemo(() => {
-    // Inclui todos os status que podem estar em colunas visíveis do Kanban
     const relevantStatuses: ChatStatusColumn[] = ['WAITING', 'IN_PROGRESS', 'TRANSFERRED'];
     return MOCK_CHATS.filter(chat => chat.queueId === queueId && relevantStatuses.includes(chat.status as ChatStatusColumn));
   }, [queueId]);
 
   const humanAgentsInQueue = useMemo(() => MOCK_USERS.filter(user => user.userType === 'AGENT_HUMAN' && user.assignedQueueIds?.includes(queueId)), [queueId]);
-  const aiAgentsInQueue = useMemo(() => MOCK_USERS.filter(user => user.userType === 'AGENT_AI' && user.assignedQueueIds?.includes(queueId)), [queueId]);
+  
+  const defaultAiAgentForQueue = useMemo(() => {
+    if (currentQueue?.defaultAiAgentId) {
+      return MOCK_USERS.find(u => u.id === currentQueue.defaultAiAgentId);
+    }
+    return null;
+  }, [currentQueue]);
 
 
   if (!hasAccess) {
@@ -152,14 +159,14 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
         </Button>
         <h1 className="text-3xl font-bold font-headline text-foreground">Kanban da Fila: {currentQueue.name}</h1>
         <p className="text-muted-foreground">{currentQueue.description}</p>
-        <div className="mt-2 flex gap-4 text-sm text-muted-foreground">
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             <div className="flex items-center">
                 <Users className="h-4 w-4 mr-1 text-primary" />
-                Agentes Humanos: <span className="font-semibold text-foreground ml-1">{humanAgentsInQueue.length}</span>
+                Agentes Humanos na Fila: <span className="font-semibold text-foreground ml-1">{humanAgentsInQueue.length}</span>
             </div>
             <div className="flex items-center">
                 <Bot className="h-4 w-4 mr-1 text-primary" />
-                Agentes IA: <span className="font-semibold text-foreground ml-1">{aiAgentsInQueue.length}</span>
+                Agente IA Padrão: <span className="font-semibold text-foreground ml-1">{defaultAiAgentForQueue?.name || 'Nenhum'}</span>
             </div>
         </div>
       </div>

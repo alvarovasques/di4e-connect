@@ -67,6 +67,7 @@ export type Queue = {
   description: string;
   isActive: boolean;
   kanbanColumns?: KanbanColumnConfig[]; // Colunas Kanban configuráveis
+  defaultAiAgentId?: string; // ID do Agente IA padrão para esta fila
 };
 
 // Tipos para a Base de Conhecimento (KB)

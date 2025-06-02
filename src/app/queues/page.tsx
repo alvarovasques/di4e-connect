@@ -7,7 +7,7 @@ import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/com
 import { Button } from '@/components/ui/button';
 import { Lock, ArrowRight, Users, Bot, PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { MOCK_QUEUES, MOCK_CHATS, MOCK_CURRENT_USER, MOCK_ROLES, MOCK_USERS } from '@/lib/mock-data';
-import type { PermissionId, Queue, ChatStatusColumn, KanbanColumnConfig } from '@/types';
+import type { PermissionId, Queue, ChatStatusColumn, KanbanColumnConfig, User as UserType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import QueueFormDialog, { type QueueFormData } from '@/components/admin/queue-form-dialog';
 import {
@@ -40,9 +40,14 @@ export default function QueuesListPage() {
     return currentUserPermissions.has('manage_queues');
   }, [currentUserPermissions]);
 
+  const aiAgents = useMemo(() => MOCK_USERS.filter(user => user.userType === 'AGENT_AI'), []);
+
 
   useEffect(() => {
-    setQueues(MOCK_QUEUES);
+    // Em um app real, as filas seriam buscadas de uma API.
+    // Para mock, se MOCK_QUEUES for atualizado externamente (improvável neste setup simples),
+    // poderíamos re-sincronizar aqui, mas para o protótipo, inicializar uma vez é suficiente.
+    setQueues(MOCK_QUEUES); 
   }, []);
 
 
@@ -61,14 +66,17 @@ export default function QueuesListPage() {
 
   const activeQueues = queues.filter(q => q.isActive); 
 
-  const getQueueStats = (queueId: string) => {
-    const chatsInQueue = MOCK_CHATS.filter(chat => chat.queueId === queueId && (chat.status === 'IN_PROGRESS' || chat.status === 'WAITING' || chat.status === 'TRANSFERRED'));
-    const humanAgentsInQueue = MOCK_USERS.filter(user => user.userType === 'AGENT_HUMAN' && user.assignedQueueIds?.includes(queueId)).length;
-    const aiAgentsInQueue = MOCK_USERS.filter(user => user.userType === 'AGENT_AI' && user.assignedQueueIds?.includes(queueId)).length;
+  const getQueueInfo = (queue: Queue) => {
+    const chatsInQueue = MOCK_CHATS.filter(chat => chat.queueId === queue.id && (chat.status === 'IN_PROGRESS' || chat.status === 'WAITING' || chat.status === 'TRANSFERRED'));
+    const humanAgentsInQueue = MOCK_USERS.filter(user => user.userType === 'AGENT_HUMAN' && user.assignedQueueIds?.includes(queue.id)).length;
+    const allAiAgentsInQueue = MOCK_USERS.filter(user => user.userType === 'AGENT_AI' && user.assignedQueueIds?.includes(queue.id)).length; // Todos os IAs que poderiam ser atribuídos
+    const defaultAiAgent = queue.defaultAiAgentId ? MOCK_USERS.find(u => u.id === queue.defaultAiAgentId) : null;
+    
     return {
       activeChats: chatsInQueue.length,
       humanAgents: humanAgentsInQueue,
-      aiAgents: aiAgentsInQueue,
+      aiAgents: allAiAgentsInQueue, // Renomeado para clareza, pode ser usado para info geral
+      defaultAiAgentName: defaultAiAgent?.name,
     };
   };
 
@@ -86,6 +94,8 @@ export default function QueuesListPage() {
     const queueToDelete = queues.find(q => q.id === queueId);
     if (confirm(`Tem certeza que deseja excluir a fila "${queueToDelete?.name}"?`)) {
       setQueues(prevQueues => prevQueues.filter(q => q.id !== queueId));
+      // TODO: Em uma app real, faria uma chamada de API para excluir.
+      // E.g., MOCK_QUEUES = MOCK_QUEUES.filter(q => q.id !== queueId);
       toast({
         title: "Fila Excluída",
         description: `A fila "${queueToDelete?.name}" foi excluída.`,
@@ -95,7 +105,6 @@ export default function QueuesListPage() {
 
   const processKanbanColumnNames = (namesString?: string): KanbanColumnConfig[] => {
     if (!namesString || namesString.trim() === '') {
-      // Retorna configuração padrão se nada for fornecido
       return [
         { id: `col_default_1_${Date.now()}`, title: 'Aguardando', mappedStatuses: ['WAITING'] },
         { id: `col_default_2_${Date.now()}`, title: 'Em Progresso', mappedStatuses: ['IN_PROGRESS'] },
@@ -115,9 +124,12 @@ export default function QueuesListPage() {
 
     if (editingQueue) {
       const updatedQueues = queues.map(q => 
-        q.id === editingQueue.id ? { ...q, ...data, kanbanColumns: newKanbanColumns } : q
+        q.id === editingQueue.id ? { ...q, ...data, kanbanColumns: newKanbanColumns, defaultAiAgentId: data.defaultAiAgentId || undefined } : q
       );
       setQueues(updatedQueues);
+      // TODO: Em uma app real, MOCK_QUEUES seria atualizado ou uma chamada de API seria feita.
+      // const mockIndex = MOCK_QUEUES.findIndex(q => q.id === editingQueue.id);
+      // if (mockIndex !== -1) MOCK_QUEUES[mockIndex] = updatedQueues.find(q => q.id === editingQueue.id)!;
       toast({ title: "Fila Atualizada", description: `A fila "${data.name}" foi atualizada.` });
     } else {
       const newQueue: Queue = {
@@ -126,8 +138,11 @@ export default function QueuesListPage() {
         description: data.description || '',
         isActive: data.isActive,
         kanbanColumns: newKanbanColumns,
+        defaultAiAgentId: data.defaultAiAgentId || undefined,
       };
       setQueues(prevQueues => [newQueue, ...prevQueues]);
+      // TODO: Em uma app real, MOCK_QUEUES seria atualizado ou uma chamada de API seria feita.
+      // MOCK_QUEUES.unshift(newQueue);
       toast({ title: "Fila Adicionada", description: `A fila "${data.name}" foi adicionada.` });
     }
     setIsFormOpen(false);
@@ -157,7 +172,7 @@ export default function QueuesListPage() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {activeQueues.map(queue => {
-              const stats = getQueueStats(queue.id);
+              const info = getQueueInfo(queue);
               return (
                 <Card key={queue.id} className="shadow-md hover:shadow-lg transition-shadow flex flex-col">
                   <CardHeader className="flex flex-row items-start justify-between">
@@ -185,14 +200,14 @@ export default function QueuesListPage() {
                   </CardHeader>
                   <CardContent className="space-y-3 flex-grow">
                     <div className="text-sm text-muted-foreground">
-                      <p>Chats Ativos: <span className="font-semibold text-foreground">{stats.activeChats}</span></p>
+                      <p>Chats Ativos: <span className="font-semibold text-foreground">{info.activeChats}</span></p>
                       <div className="flex items-center">
                         <Users className="h-4 w-4 mr-2 text-primary" />
-                        Agentes Humanos: <span className="font-semibold text-foreground ml-1">{stats.humanAgents}</span>
+                        Agentes Humanos: <span className="font-semibold text-foreground ml-1">{info.humanAgents}</span>
                       </div>
                       <div className="flex items-center">
                         <Bot className="h-4 w-4 mr-2 text-primary" />
-                        Agentes IA: <span className="font-semibold text-foreground ml-1">{stats.aiAgents}</span>
+                        Agente IA Padrão: <span className="font-semibold text-foreground ml-1">{info.defaultAiAgentName || 'Nenhum'}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -215,6 +230,7 @@ export default function QueuesListPage() {
           onOpenChange={setIsFormOpen}
           onSubmit={handleFormSubmit}
           initialData={editingQueue}
+          aiAgents={aiAgents}
         />
       )}
     </>

@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Queue, ChatStatusColumn, KanbanColumnConfig } from '@/types';
+import type { Queue, User } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const queueFormSchema = z.object({
   id: z.string().optional(),
@@ -27,6 +28,7 @@ const queueFormSchema = z.object({
   description: z.string().optional(),
   isActive: z.boolean().default(true),
   kanbanColumnNames: z.string().optional().describe("Nomes das colunas do Kanban, um por linha. As três primeiras serão mapeadas para Aguardando, Em Progresso, Transferido."),
+  defaultAiAgentId: z.string().optional().describe("ID do Agente IA padrão para esta fila."),
 });
 
 export type QueueFormData = z.infer<typeof queueFormSchema>;
@@ -36,11 +38,12 @@ type QueueFormDialogProps = {
   onOpenChange: (isOpen: boolean) => void;
   onSubmit: (data: QueueFormData) => void;
   initialData?: Queue | null;
+  aiAgents: User[]; // Lista de agentes IA disponíveis
 };
 
 const defaultKanbanColumnTitles = ['Aguardando', 'Em Progresso', 'Transferido'];
 
-const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueFormDialogProps) => {
+const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents }: QueueFormDialogProps) => {
   const form = useForm<QueueFormData>({
     resolver: zodResolver(queueFormSchema),
     defaultValues: {
@@ -48,6 +51,7 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
       description: '',
       isActive: true,
       kanbanColumnNames: defaultKanbanColumnTitles.join('\n'),
+      defaultAiAgentId: '',
       id: undefined,
     },
   });
@@ -61,6 +65,7 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
         form.reset({
           ...initialData,
           kanbanColumnNames: columnNames,
+          defaultAiAgentId: initialData.defaultAiAgentId || '',
         });
       } else {
         form.reset({
@@ -68,6 +73,7 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
           description: '',
           isActive: true,
           kanbanColumnNames: defaultKanbanColumnTitles.join('\n'),
+          defaultAiAgentId: '',
           id: undefined,
         });
       }
@@ -75,7 +81,12 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
   }, [initialData, form, isOpen]);
   
   const handleFormSubmit = (data: QueueFormData) => {
-    onSubmit(data);
+    // Se defaultAiAgentId for uma string vazia, transforma em undefined para não salvar string vazia
+    const dataToSubmit = {
+      ...data,
+      defaultAiAgentId: data.defaultAiAgentId === '' ? undefined : data.defaultAiAgentId,
+    };
+    onSubmit(dataToSubmit);
     onOpenChange(false);
   };
 
@@ -85,7 +96,7 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
         <DialogHeader>
           <DialogTitle>{initialData ? 'Editar Fila' : 'Adicionar Nova Fila'}</DialogTitle>
           <DialogDescription>
-            {initialData ? 'Atualize os detalhes e colunas do Kanban da fila.' : 'Preencha os detalhes para criar uma nova fila e configurar suas colunas Kanban.'}
+            {initialData ? 'Atualize os detalhes, colunas do Kanban e Agente IA padrão da fila.' : 'Preencha os detalhes para criar uma nova fila, configurar suas colunas Kanban e Agente IA padrão.'}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -116,6 +127,34 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData }: QueueF
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="defaultAiAgentId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Agente IA Padrão (Opcional)</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um Agente IA" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Nenhum Agente IA Padrão</SelectItem>
+                      {aiAgents.map(agent => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Selecione um Agente IA para ser o padrão desta fila.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
