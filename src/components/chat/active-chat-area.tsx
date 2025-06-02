@@ -63,7 +63,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
   const [supervisorEvaluationScore, setSupervisorEvaluationScore] = useState(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
   const [supervisorFeedback, setSupervisorFeedback] = useState('');
-  const [activeTab, setActiveTab] = useState(initialAction === 'whisper' ? 'notes' : 'details'); // 'notes' tab might be repurposed or removed
+  const [activeTab, setActiveTab] = useState(initialAction === 'whisper' ? 'notes' : 'details'); 
 
   const isSupervisor = MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'ADMIN';
   const canCurrentUserWhisper = isSupervisor || MOCK_CURRENT_USER.id === chat?.assignedTo;
@@ -72,7 +72,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   useEffect(() => {
     setChat(initialChat);
     setMessages(initialChat?.messages || []);
-    // Removed setWhisperNotes
+    
     if (initialChat) {
       fetchAiSuggestions(initialChat.messages);
     } else {
@@ -80,11 +80,12 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     }
     setSupervisorEvaluationScore(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
     setSupervisorFeedback('');
-    // The 'notes' tab functionality for whispers is removed, so 'whisper' action might not make sense for tab selection.
-    // Defaulting to 'details' or a relevant tab based on role.
-    setActiveTab(isSupervisor ? 'ia_eval' : 'details');
+    
+    const newActiveTab = initialAction === 'whisper' && canCurrentUserWhisper ? 'notes' : (isSupervisor ? 'ia_eval' : 'details');
+    setActiveTab(newActiveTab);
 
-  }, [initialChat, isSupervisor]); // Removed initialAction, searchParams as direct deps for activeTab here
+
+  }, [initialChat, isSupervisor, initialAction, canCurrentUserWhisper]); 
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -172,10 +173,10 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       type: 'whisper',
       sender: MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'ADMIN' ? 'supervisor' : 'agent',
       senderId: MOCK_CURRENT_USER.id,
-      senderName: `${MOCK_CURRENT_USER.name}`, // MessageBubble will add context like "(Sussurro)"
+      senderName: `${MOCK_CURRENT_USER.name}`, 
       timestamp: new Date(),
       isFromCustomer: false,
-      targetAgentId: chat.assignedTo || undefined, // Whisper is for the assigned agent
+      targetAgentId: chat.assignedTo || undefined, 
     };
     setMessages(prevMessages => [...prevMessages, newWhisperMessage]);
     toast({ title: "Sussurro enviado", description: "Sua nota interna foi enviada para o agente." });
@@ -324,8 +325,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
             <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
               <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
-              {/* The "Notas" tab is now less prominent for whispers, could be for general notes or removed */}
-              <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Hist. Notas</TabsTrigger>
+              <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
               {isSupervisor ? (
                 <TabsTrigger value="ia_eval" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Análise IA</TabsTrigger>
               ) : (
@@ -359,11 +359,14 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="notes" className="flex-1 flex flex-col overflow-hidden p-4">
-              {/* Display historical non-inline notes here if any. For now, it's empty as whispers are inline. */}
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Notas internas (sussurros) são exibidas inline na conversa. Esta área pode ser usada para outras anotações.
-              </p>
+            <TabsContent value="notes" className="flex-1 overflow-y-auto p-0">
+              <ScrollArea className="h-full">
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Notas internas (sussurros) são exibidas inline na conversa. Esta área pode ser usada para outras anotações.
+                  </p>
+                </div>
+              </ScrollArea>
             </TabsContent>
             
             {isSupervisor && (
@@ -440,3 +443,4 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
 export default ActiveChatArea;
 
+    
