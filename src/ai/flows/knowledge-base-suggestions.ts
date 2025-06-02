@@ -76,11 +76,14 @@ const suggestKnowledgeBaseArticlesFlow = ai.defineFlow(
     outputSchema: SuggestKnowledgeBaseArticlesOutputSchema,
   },
   async input => {
-    // Este fluxo demonstra como a IA ("IA-mãe" ou sistema Genkit)
-    // pode consumir a Base de Conhecimento para fornecer sugestões relevantes
-    // aos usuários (humanos ou outros sistemas de IA).
-    const {output} = await prompt(input);
-    return output!;
+    try {
+      const {output} = await prompt(input);
+      return output || []; // Retorna lista vazia se output for null/undefined
+    } catch (error) {
+      console.error('Error in suggestKnowledgeBaseArticlesFlow:', error);
+      // Em caso de erro (ex: 503 da API), retorna uma lista vazia para não quebrar a UI.
+      return []; 
+    }
   }
 );
 

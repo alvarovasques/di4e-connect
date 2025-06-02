@@ -1,3 +1,4 @@
+
 // src/ai/flows/sentiment-analysis.ts
 'use server';
 /**
@@ -46,7 +47,14 @@ const analyzeSentimentFlow = ai.defineFlow(
     outputSchema: SentimentAnalysisOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    try {
+      const {output} = await prompt(input);
+      // Retorna um valor padrão se output for null/undefined
+      return output || { sentimentScore: 0, confidenceIndex: 0 }; 
+    } catch (error) {
+      console.error('Error in analyzeSentimentFlow:', error);
+      // Em caso de erro, retorna um sentimento neutro para não quebrar a UI.
+      return { sentimentScore: 0, confidenceIndex: 0 };
+    }
   }
 );

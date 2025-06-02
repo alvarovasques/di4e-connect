@@ -83,17 +83,26 @@ const oracleQueryFlow = ai.defineFlow(
     inputSchema: OracleQueryInputSchema,
     outputSchema: OracleQueryOutputSchema,
   },
-  async (input: OracleQueryInput) => {
-    const knowledgeBaseContext = getKnowledgeBaseContext(input.selectedKbIds);
-    
-    const {output} = await prompt({
-      userInput: input.userInput,
-      knowledgeBaseContext, 
-    });
+  async (input: OracleQueryInput): Promise<OracleQueryOutput> => {
+    try {
+      const knowledgeBaseContext = getKnowledgeBaseContext(input.selectedKbIds);
+      
+      const {output} = await prompt({
+        userInput: input.userInput,
+        knowledgeBaseContext, 
+      });
 
-    if (!output) {
-        return { oracleResponse: "Desculpe, não consegui processar sua solicitação no momento.", suggestedPrompts: [] };
+      if (!output) {
+          return { oracleResponse: "Desculpe, não consegui processar sua solicitação no momento (sem output).", suggestedPrompts: [] };
+      }
+      return output;
+    } catch (error) {
+      console.error('Error in oracleQueryFlow:', error);
+      // Retorna uma mensagem de erro genérica para a UI
+      return {
+        oracleResponse: "Desculpe, ocorreu um erro ao tentar processar sua pergunta. O serviço pode estar temporariamente indisponível. Tente novamente mais tarde.",
+        suggestedPrompts: []
+      };
     }
-    return output;
   }
 );
