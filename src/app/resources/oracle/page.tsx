@@ -1,17 +1,19 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect, FormEvent } from 'react';
-import { Sparkles, SendHorizonal, Loader2, CornerDownLeft, HelpCircle, BookOpen } from 'lucide-react';
+import React, { useState, useRef, useEffect, FormEvent, useMemo } from 'react';
+import { Sparkles, SendHorizonal, Loader2, CornerDownLeft, HelpCircle, BookOpen, ListFilter, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { queryOracle, OracleQueryInput, OracleQueryOutput } from '@/ai/flows/oracle-query-flow';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { MOCK_KB_ITEMS } from '@/lib/mock-data';
-import type { KBItem } from '@/types';
+import { MOCK_KB_ITEMS, MOCK_CURRENT_USER, MOCK_ROLES } from '@/lib/mock-data';
+import type { KBItem, PermissionId } from '@/types';
 
 interface OracleMessage {
   id: string;
@@ -20,7 +22,7 @@ interface OracleMessage {
   timestamp: Date;
 }
 
-const FALLBACK_PROMPT_SUGGESTIONS = [
+const DEFAULT_PROMPT_SUGGESTIONS = [
   "Qual é a política de reembolso da empresa?",
   "Como funciona o processo de escalonamento de chamados?",
   "Resuma o código de conduta.",
@@ -35,11 +37,38 @@ export default function OraclePage() {
   const [dynamicPromptSuggestions, setDynamicPromptSuggestions] = useState<string[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+  const currentUserRole = MOCK_ROLES.find(role => role.id === MOCK_CURRENT_USER.roleId);
+  const currentUserPermissions = useMemo(() => new Set(currentUserRole?.permissions || []), [currentUserRole]);
+  const hasPermission = (permission: PermissionId) => currentUserPermissions.has(permission);
+
+  const userAccessibleKbItems = useMemo(() => {
+    return MOCK_KB_ITEMS.filter(item => {
+      if (item.type !== 'file') return false; // Apenas arquivos podem ser "consultados" diretamente
+      
+      // Lógica de permissão similar a knowledge-base/page.tsx
+      if (item.modelType === 'personal' && (!hasPermission('kb_view_personal') || item.ownerId !== MOCK_CURRENT_USER.id)) return false;
+      if (item.modelType === 'team' && !hasPermission('kb_view_team_all') && (!hasPermission('kb_view_team_own') || item.teamId !== MOCK_CURRENT_USER.teamId)) return false;
+      if (item.modelType === 'queue' && !hasPermission('kb_view_queue_all') && (!hasPermission('kb_view_queue_assigned') || !MOCK_CURRENT_USER.assignedQueueIds?.includes(item.queueId || ''))) return false;
+      if (item.modelType === 'general' && !hasPermission('kb_view_general')) return false;
+      
+      // Garante que o item tenha conteúdo textual para ser útil ao Oráculo
+      return item.type === 'file' && (item.mimeType === 'text/markdown' || item.mimeType === 'text/plain' || (item.content && item.content.trim() !== ''));
+    }).sort((a,b) => a.name.localeCompare(b.name));
+  }, [currentUserPermissions, MOCK_CURRENT_USER.id, MOCK_CURRENT_USER.teamId, MOCK_CURRENT_USER.assignedQueueIds]);
+
+  const [selectedKbIds, setSelectedKbIds] = useState<string[]>(() => userAccessibleKbItems.map(item => item.id));
+
+  useEffect(() => {
+    // Se userAccessibleKbItems mudar, re-seleciona todos por padrão
+    setSelectedKbIds(userAccessibleKbItems.map(item => item.id));
+  }, [userAccessibleKbItems]);
+
+
   useEffect(() => {
     setMessages([
       {
         id: 'oracle-init',
-        text: 'Olá! Sou o Oráculo IA. Posso te ajudar a encontrar informações na Base de Conhecimento ou a formular prompts. Como posso te ajudar hoje?',
+        text: 'Olá! Sou o Oráculo IA. Posso te ajudar a encontrar informações na Base de Conhecimento ou a formular prompts. Selecione os documentos que deseja usar no painel lateral e me faça uma pergunta!',
         sender: 'oracle',
         timestamp: new Date(),
       },
@@ -72,7 +101,7 @@ export default function OraclePage() {
     setDynamicPromptSuggestions([]); 
 
     try {
-      const inputForFlow: OracleQueryInput = { userInput: currentInput };
+      const inputForFlow: OracleQueryInput = { userInput: currentInput, selectedKbIds };
       const result: OracleQueryOutput = await queryOracle(inputForFlow);
       
       const oracleMessage: OracleMessage = {
@@ -106,8 +135,23 @@ export default function OraclePage() {
     handleSubmit(undefined, suggestion);
   };
   
-  const sampleKbItems = MOCK_KB_ITEMS.filter(item => item.type === 'file' && item.content).slice(0,3);
-  const currentPromptSuggestions = dynamicPromptSuggestions.length > 0 ? dynamicPromptSuggestions : FALLBACK_PROMPT_SUGGESTIONS;
+  const currentPromptSuggestions = dynamicPromptSuggestions.length > 0 ? dynamicPromptSuggestions : DEFAULT_PROMPT_SUGGESTIONS;
+
+  const toggleKbItemSelection = (itemId: string) => {
+    setSelectedKbIds(prevSelected =>
+      prevSelected.includes(itemId)
+        ? prevSelected.filter(id => id !== itemId)
+        : [...prevSelected, itemId]
+    );
+  };
+
+  const handleSelectAllKbItems = () => {
+    setSelectedKbIds(userAccessibleKbItems.map(item => item.id));
+  };
+  const handleDeselectAllKbItems = () => {
+    setSelectedKbIds([]);
+  };
+
 
   return (
     <div className="flex h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)]">
@@ -199,8 +243,8 @@ export default function OraclePage() {
         </form>
       </div>
 
-      <aside className="w-80 hidden lg:flex flex-col border-l bg-muted/30 p-4 space-y-6">
-        <Card>
+      <aside className="w-80 hidden lg:flex flex-col border-l bg-muted/30 p-4 space-y-4">
+        <Card className="flex-shrink-0">
           <CardHeader>
             <CardTitle className="text-lg flex items-center">
               <HelpCircle className="mr-2 h-5 w-5 text-primary" />
@@ -209,7 +253,7 @@ export default function OraclePage() {
             <CardDescription>Clique para enviar ou use como inspiração.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="max-h-60"> {/* Altura máxima para rolagem */}
+            <ScrollArea className="h-auto max-h-48"> {/* Altura máxima para rolagem */}
               <div className="space-y-2">
                 {currentPromptSuggestions.map((prompt, index) => (
                   <Button
@@ -228,28 +272,42 @@ export default function OraclePage() {
             </ScrollArea>
           </CardContent>
         </Card>
-        <Card>
-           <CardHeader>
+        
+        <Card className="flex-1 flex flex-col overflow-hidden">
+           <CardHeader className="flex-shrink-0">
             <CardTitle className="text-lg flex items-center">
-                <BookOpen className="mr-2 h-5 w-5 text-primary" />
-                Base de Conhecimento
+                <ListFilter className="mr-2 h-5 w-5 text-primary" />
+                Contexto da Base de Conhecimento
             </CardTitle>
-            <CardDescription>O Oráculo utiliza estes e outros documentos.</CardDescription>
+            <CardDescription>Selecione os documentos para consulta.</CardDescription>
+             <div className="flex gap-2 mt-2">
+                <Button size="xs" variant="outline" onClick={handleSelectAllKbItems} disabled={isLoading}>
+                    <CheckSquare className="mr-1 h-3 w-3"/> Sel. Todos
+                </Button>
+                <Button size="xs" variant="outline" onClick={handleDeselectAllKbItems} disabled={isLoading}>
+                     <Square className="mr-1 h-3 w-3"/> Limpar Sel.
+                </Button>
+            </div>
           </CardHeader>
-          <CardContent className="text-sm">
-            <ScrollArea className="max-h-60"> {/* Altura máxima para rolagem */}
+          <CardContent className="text-sm flex-1 overflow-hidden p-0">
+            <ScrollArea className="h-full p-4"> 
               <div className="space-y-2">
-                {sampleKbItems.length > 0 ? (
-                    sampleKbItems.map(item => (
-                        <div key={item.id} className="p-2 border rounded-md bg-background/50 text-xs">
-                            <p className="font-semibold truncate" title={item.name}>{item.name}</p>
-                            <p className="text-muted-foreground line-clamp-2" title={item.summary || item.content}>
-                                {item.summary || item.content?.substring(0,100) + "..."}
-                            </p>
+                {userAccessibleKbItems.length > 0 ? (
+                    userAccessibleKbItems.map(item => (
+                        <div key={item.id} className="flex items-center space-x-2 p-2 border rounded-md bg-background/50 hover:bg-background/70 text-xs">
+                            <Checkbox
+                                id={`kb-select-${item.id}`}
+                                checked={selectedKbIds.includes(item.id)}
+                                onCheckedChange={() => toggleKbItemSelection(item.id)}
+                                disabled={isLoading}
+                            />
+                            <Label htmlFor={`kb-select-${item.id}`} className="font-normal cursor-pointer flex-1" title={item.name}>
+                                {item.name}
+                            </Label>
                         </div>
                     ))
                 ) : (
-                    <p className="text-muted-foreground">Nenhum exemplo da Base de Conhecimento para mostrar.</p>
+                    <p className="text-muted-foreground text-center py-4">Nenhum item da Base de Conhecimento acessível ou com conteúdo textual para consulta.</p>
                 )}
               </div>
             </ScrollArea>
@@ -259,4 +317,3 @@ export default function OraclePage() {
     </div>
   );
 }
-
