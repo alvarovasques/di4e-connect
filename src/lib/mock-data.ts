@@ -4,7 +4,15 @@ import type { User, Chat, Message, Queue, KnowledgeBaseArticle, WhisperNote, Met
 export const MOCK_USERS: User[] = [
   { id: 'user_1', name: 'Alice Silva', email: 'alice@example.com', userType: 'AGENT_HUMAN', avatarUrl: 'https://placehold.co/100x100/E6A4B4/white?text=AS' },
   { id: 'user_2', name: 'Roberto Johnson', email: 'roberto@example.com', userType: 'SUPERVISOR', avatarUrl: 'https://placehold.co/100x100/A4E6B4/white?text=RJ' },
-  { id: 'user_3', name: 'Assistente IA', email: 'ia@example.com', userType: 'AGENT_AI', avatarUrl: 'https://placehold.co/100x100/A4B4E6/white?text=IA' },
+  { 
+    id: 'user_3', 
+    name: 'Assistente IA Padrão', 
+    email: 'ia@example.com', 
+    userType: 'AGENT_AI', 
+    avatarUrl: 'https://placehold.co/100x100/A4B4E6/white?text=IA',
+    llmPrompt: 'Você é um assistente de atendimento ao cliente amigável e eficiente. Responda às perguntas dos clientes de forma clara e concisa. Se não souber a resposta, diga que vai verificar e peça um momento.',
+    aiModelName: 'gemini-1.5-flash'
+  },
   { id: 'user_4', name: 'Carlos Brown', email: 'carlos@example.com', userType: 'ADMIN', avatarUrl: 'https://placehold.co/100x100/E6DCA4/white?text=CB' },
 ];
 
@@ -75,7 +83,7 @@ export const MOCK_CHATS: Chat[] = [
     customerName: 'Pedro Pereira',
     customerPhone: '+15551122334',
     queueId: 'queue_1',
-    assignedTo: MOCK_USERS[2].id, // Assistente IA
+    assignedTo: MOCK_USERS[2].id, // Assistente IA Padrão
     status: 'RESOLVED',
     priority: 'LOW',
     createdAt: new Date(Date.now() - 3600000 * 5), 

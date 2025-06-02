@@ -5,6 +5,8 @@ export type User = {
   email: string;
   userType: 'ADMIN' | 'SUPERVISOR' | 'AGENT_HUMAN' | 'AGENT_AI' | 'VIEWER';
   avatarUrl?: string;
+  llmPrompt?: string; // Prompt do sistema para agentes IA
+  aiModelName?: string; // Nome do modelo de IA (ex: gemini-pro)
 };
 
 export type Message = {
