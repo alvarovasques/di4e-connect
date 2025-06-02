@@ -82,7 +82,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   const isAgent = currentUser.userType === 'AGENT_HUMAN';
   const isCurrentUserAssigned = chat?.assignedTo === currentUser.id;
 
-  // Oracle UI State
+  // Oracle UI State for Agent
   const [oracleUserInput, setOracleUserInput] = useState('');
   const [oracleMessages, setOracleMessages] = useState<OracleUIMessage[]>([]);
   const [isOracleLoading, setIsOracleLoading] = useState(false);
@@ -93,7 +93,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       ? 'notes' 
       : isSupervisor 
         ? 'ia_eval' 
-        : 'details'
+        : 'details' // Agent defaults to details
   ); 
 
   const canCurrentUserWhisper = isSupervisor || isCurrentUserAssigned;
@@ -102,7 +102,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   useEffect(() => {
     setChat(initialChat);
     setMessages(initialChat?.messages || []);
-    setOracleMessages([]); // Reset oracle messages on chat change
+    setOracleMessages([]); 
     setOracleUserInput('');
     setOracleSuggestions(DEFAULT_ORACLE_PROMPT_SUGGESTIONS);
     
@@ -119,7 +119,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
         ? 'notes' 
         : isSupervisor 
             ? 'ia_eval' 
-            : 'details'; // Agent defaults to details
+            : 'details';
     setActiveTab(newActiveTab);
 
   }, [initialChat, isSupervisor, isAgent, isCurrentUserAssigned, initialAction, canCurrentUserWhisper]); 
@@ -174,11 +174,12 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
         };
       }).slice(0, 3)); 
 
-      if (isSupervisor) { // Only fetch global chat sentiment for supervisors
+      // Agent view does not show global chat sentiment from supervisor's perspective in header
+      // Individual customer message sentiment is handled in MessageBubble
+      if (isSupervisor) { 
         const lastCustomerMessage = [...currentMessages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
         if (lastCustomerMessage) {
           const sentimentResult = await analyzeSentiment({ text: lastCustomerMessage.content });
-          // Update sentiment on individual message (already happening for all users in MessageBubble)
           setMessages(prevMessages => prevMessages.map(m => 
               m.id === lastCustomerMessage.id ? { ...m, sentimentScore: sentimentResult.sentimentScore } : m
           ));
@@ -284,8 +285,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   };
   
   const handleSelectKbArticle = (article: KnowledgeBaseArticle) => {
-    // For agents, this could paste content into the input or open a detailed view.
-    // For now, just a toast.
     const articlePreview = article.summary || article.content.substring(0, 100) + "...";
     if (navigator.clipboard) {
         navigator.clipboard.writeText(articlePreview);
@@ -318,8 +317,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     setOracleSuggestions([]);
 
     try {
-      // For simplicity, the Oracle in chat will use all text-based KB items accessible to any agent/supervisor
-      // A more refined version might filter based on currentUser's permissions or agent's current queue context
       const accessibleKbIds = MOCK_KB_ITEMS
         .filter(item => item.type === 'file' && (item.mimeType === 'text/markdown' || item.mimeType === 'text/plain' || (item.content && item.content.trim() !== '')))
         .map(item => item.id);
@@ -338,7 +335,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       if (result.suggestedPrompts && result.suggestedPrompts.length > 0) {
         setOracleSuggestions(result.suggestedPrompts);
       } else {
-        setOracleSuggestions(DEFAULT_ORACLE_PROMPT_SUGGESTIONS); // Fallback if no suggestions
+        setOracleSuggestions(DEFAULT_ORACLE_PROMPT_SUGGESTIONS);
       }
 
     } catch (error) {
@@ -372,7 +369,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   }
 
   const assignedAgentDetails = MOCK_USERS.find(u => u.id === chat.assignedTo);
-  const agentCanTakeActionOnWaitingChat = isAgent && chat.status === 'WAITING' && (!chat.assignedTo || !currentUser.assignedQueueIds?.includes(chat.queueId));
+  const agentCanTakeActionOnWaitingChat = isAgent && chat.status === 'WAITING' && (!chat.assignedTo || chat.assignedTo !== currentUser.id) && currentUser.assignedQueueIds?.includes(chat.queueId);
   const agentCanStartAssignedWaitingChat = isAgent && chat.status === 'WAITING' && isCurrentUserAssigned;
   const agentCanManageInProgressChat = isAgent && chat.status === 'IN_PROGRESS' && isCurrentUserAssigned;
 
@@ -395,12 +392,11 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
-             {isSupervisor && chat.aiAnalysis && ( // Only show global sentiment for supervisor
+             {isSupervisor && chat.aiAnalysis && (
                 <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} simple />
              )}
 
-            {/* Actions for AGENT_HUMAN */}
-            {isAgent && chat.status === 'WAITING' && (!chat.assignedTo || chat.assignedTo !== currentUser.id) && currentUser.assignedQueueIds?.includes(chat.queueId) && (
+            {agentCanTakeActionOnWaitingChat && (
                  <Button variant="outline" size="sm" onClick={handleAgentAssumeChat}>
                     <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir Chat</span>
                 </Button>
@@ -423,7 +419,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
               </>
             )}
 
-            {/* Actions for SUPERVISOR/ADMIN */}
             {isSupervisor && (
               <>
                 <ChatTransferDialog 
@@ -431,7 +426,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                     agents={MOCK_USERS.filter(u => u.userType === "AGENT_HUMAN")} 
                     onTransfer={handleTransferChatSubmit} 
                 />
-                {!isCurrentUserAssigned && ( // Show assume button only if supervisor is not already assigned
+                {!isCurrentUserAssigned && (
                      <Button variant="outline" size="sm" onClick={handleSupervisorAssumeChat} title="Assumir Chat">
                         <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir</span>
                     </Button>
@@ -479,12 +474,12 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       
       <aside className="hidden lg:flex w-80 flex-col border-l bg-muted/20">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
+          <TabsList className={cn("grid w-full rounded-none border-b", isSupervisor ? "grid-cols-3" : "grid-cols-4")}>
             <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
             <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
             {isSupervisor ? (
               <TabsTrigger value="ia_eval" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Análise IA</TabsTrigger>
-            ) : ( // Agent sees BC and Oracle
+            ) : (
               <>
                 <TabsTrigger value="kb" className="text-xs px-1"><BookOpen className="h-4 w-4"/> BC</TabsTrigger>
                 <TabsTrigger value="oracle" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Oráculo</TabsTrigger>
@@ -506,7 +501,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                      <p><strong>Agente:</strong> {assignedAgentDetails?.name || "Não atribuído"}</p>
                   </CardContent>
                 </Card>
-                 {isSupervisor && chat.aiAnalysis && ( // Global sentiment only for supervisor
+                 {isSupervisor && chat.aiAnalysis && ( 
                   <Card>
                     <CardHeader><CardTitle className="text-base">Sentimento (IA)</CardTitle></CardHeader>
                     <CardContent>
@@ -686,6 +681,4 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 };
 
 export default ActiveChatArea;
-    
-
     
