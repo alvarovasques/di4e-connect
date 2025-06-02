@@ -1,5 +1,5 @@
 
-import type { User, Chat, Message, Queue, KnowledgeBaseArticle, WhisperNote, Metric, PerformanceData, AiInsight, Role } from '@/types';
+import type { User, Chat, Message, Queue, KnowledgeBaseArticle, WhisperNote, Metric, PerformanceData, AiInsight, Role, AiModel } from '@/types';
 
 export const MOCK_USERS: User[] = [
   { id: 'user_1', name: 'Alice Silva', email: 'alice@example.com', userType: 'AGENT_HUMAN', avatarUrl: 'https://placehold.co/100x100/E6A4B4/white?text=AS' },
@@ -142,4 +142,21 @@ export const MOCK_ROLES: Role[] = [
   { id: 'role_agent_human', name: 'Agente Humano', permissions: ['handle_chats', 'view_kb'], description: 'Lida com interações de clientes.' },
   { id: 'role_agent_ai', name: 'Agente IA', permissions: ['handle_chats_ai_only'], description: 'Agente de IA automatizado.' },
   { id: 'role_viewer', name: 'Visualizador', permissions: ['view_reports_limited'], description: 'Acesso somente leitura a determinados relatórios.' },
+];
+
+export const MOCK_AI_MODELS: AiModel[] = [
+  { 
+    id: 'model_1', 
+    name: 'gemini-1.5-flash', 
+    token: 'MOCK_TOKEN_GEMINI_FLASH_XXXXXXXXXXXXXXXXXXXX', // Exemplo, não usar em produção
+    provider: 'Google AI',
+    description: 'Modelo rápido e versátil da Google AI.'
+  },
+  { 
+    id: 'model_2', 
+    name: 'googleai/gemini-2.0-flash-exp', 
+    token: 'MOCK_TOKEN_GEMINI_FLASH_EXP_YYYYYYYYYYYYYYYY', // Exemplo, não usar em produção
+    provider: 'Google AI',
+    description: 'Modelo experimental da Google AI com capacidade de geração de imagem.'
+  },
 ];

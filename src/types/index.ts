@@ -98,3 +98,11 @@ export type Role = {
   permissions: string[];
   description?: string;
 };
+
+export type AiModel = {
+  id: string;
+  name: string; // e.g., "gemini-1.5-flash", "googleai/gemini-2.0-flash-exp"
+  token: string; // API Key - handle with extreme care in a real app
+  provider: string; // e.g., "Google AI", "OpenAI"
+  description?: string;
+};
