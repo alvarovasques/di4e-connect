@@ -24,8 +24,9 @@ const WhisperNoteInput = ({ onSendWhisperNote, disabled }: WhisperNoteInputProps
 
   return (
     <form onSubmit={handleSubmit} className="p-3 border-t">
-      <label htmlFor="whisper-note" className="text-xs font-medium text-muted-foreground mb-1 block">
-        Nota Interna (Sussurro)
+      <label htmlFor="whisper-note" className="text-xs font-medium text-muted-foreground mb-1 flex items-center">
+        <MessageSquareQuote className="h-3 w-3 mr-1.5 text-accent" /> 
+        Nota Interna
       </label>
       <Textarea
         id="whisper-note"
