@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, FormEvent } from 'react';
 import type { Chat, Message, User, KnowledgeBaseArticle, Queue, KBItem, MessageType } from '@/types';
 import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ITEMS, MOCK_CURRENT_USER } from '@/lib/mock-data';
 import MessageBubble from './message-bubble';
@@ -12,7 +12,7 @@ import ChatTransferDialog from './chat-transfer-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, BookOpen, Bot, CheckCircle, CornerRightUp, Info, Loader2, MessageSquareQuote, MoreVertical, Send, ShieldCheck, Sparkles, UsersIcon, SlidersHorizontal, Ear, Play } from 'lucide-react';
+import { AlertTriangle, BookOpen, Bot, CheckCircle, CornerRightUp, Info, Loader2, MessageSquareQuote, MoreVertical, Send, ShieldCheck, Sparkles, UsersIcon, SlidersHorizontal, Ear, Play, SendHorizonal, HelpCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { analyzeSentiment } from '@/ai/flows/sentiment-analysis';
 import { suggestKnowledgeBaseArticles } from '@/ai/flows/knowledge-base-suggestions';
+import { queryOracle, type OracleQueryInput, type OracleQueryOutput } from '@/ai/flows/oracle-query-flow';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
@@ -31,10 +32,18 @@ import { Slider } from '../ui/slider';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSearchParams } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 type ActiveChatAreaProps = {
   chat: Chat | null;
 };
+
+interface OracleUIMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'oracle';
+  timestamp: Date;
+}
 
 const SIMULATED_IA_MAE_ANALYSIS = {
   evaluationScore: 82,
@@ -46,6 +55,13 @@ const SIMULATED_IA_MAE_ANALYSIS = {
   ],
 };
 
+const DEFAULT_ORACLE_PROMPT_SUGGESTIONS = [
+  "Como responder a um cliente irritado?",
+  "Peça uma breve explicação sobre o Produto X.",
+  "Sugira 3 formas de encerrar a conversa educadamente.",
+];
+
+
 const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   const searchParams = useSearchParams();
   const initialAction = searchParams.get('action');
@@ -55,6 +71,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   const [suggestedArticles, setSuggestedArticles] = useState<KnowledgeBaseArticle[]>([]);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const oracleScrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const [supervisorEvaluationScore, setSupervisorEvaluationScore] = useState(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
@@ -65,7 +82,19 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   const isAgent = currentUser.userType === 'AGENT_HUMAN';
   const isCurrentUserAssigned = chat?.assignedTo === currentUser.id;
 
-  const [activeTab, setActiveTab] = useState(initialAction === 'whisper' ? 'notes' : (isSupervisor ? 'ia_eval' : 'details')); 
+  // Oracle UI State
+  const [oracleUserInput, setOracleUserInput] = useState('');
+  const [oracleMessages, setOracleMessages] = useState<OracleUIMessage[]>([]);
+  const [isOracleLoading, setIsOracleLoading] = useState(false);
+  const [oracleSuggestions, setOracleSuggestions] = useState<string[]>(DEFAULT_ORACLE_PROMPT_SUGGESTIONS);
+
+  const [activeTab, setActiveTab] = useState(
+    initialAction === 'whisper' && (isSupervisor || isCurrentUserAssigned) 
+      ? 'notes' 
+      : isSupervisor 
+        ? 'ia_eval' 
+        : 'details'
+  ); 
 
   const canCurrentUserWhisper = isSupervisor || isCurrentUserAssigned;
 
@@ -73,6 +102,9 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   useEffect(() => {
     setChat(initialChat);
     setMessages(initialChat?.messages || []);
+    setOracleMessages([]); // Reset oracle messages on chat change
+    setOracleUserInput('');
+    setOracleSuggestions(DEFAULT_ORACLE_PROMPT_SUGGESTIONS);
     
     if (initialChat) {
       fetchAiSuggestions(initialChat.messages);
@@ -82,7 +114,12 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     setSupervisorEvaluationScore(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
     setSupervisorFeedback('');
     
-    const newActiveTab = initialAction === 'whisper' && canCurrentUserWhisper ? 'notes' : (isSupervisor ? 'ia_eval' : (isAgent && initialChat?.status === 'WAITING' && !isCurrentUserAssigned ? 'details' : 'details'));
+    const newActiveTab = 
+        initialAction === 'whisper' && canCurrentUserWhisper 
+        ? 'notes' 
+        : isSupervisor 
+            ? 'ia_eval' 
+            : 'details'; // Agent defaults to details
     setActiveTab(newActiveTab);
 
   }, [initialChat, isSupervisor, isAgent, isCurrentUserAssigned, initialAction, canCurrentUserWhisper]); 
@@ -95,6 +132,15 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       }
     }
   }, [messages, activeTab]);
+
+  useEffect(() => {
+    if (oracleScrollAreaRef.current) {
+      const scrollViewport = oracleScrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+      if (scrollViewport) {
+        scrollViewport.scrollTop = scrollViewport.scrollHeight;
+      }
+    }
+  }, [oracleMessages]);
 
   const fetchAiSuggestions = async (currentMessages: Message[]) => {
     if (!chat || currentMessages.length === 0) return;
@@ -128,20 +174,22 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
         };
       }).slice(0, 3)); 
 
-      const lastCustomerMessage = [...currentMessages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
-      if (lastCustomerMessage) {
-        const sentimentResult = await analyzeSentiment({ text: lastCustomerMessage.content });
-        setMessages(prevMessages => prevMessages.map(m => 
-            m.id === lastCustomerMessage.id ? { ...m, sentimentScore: sentimentResult.sentimentScore } : m
-        ));
-        if (chat) {
-            setChat(prevChat => prevChat ? {...prevChat, aiAnalysis: {sentimentScore: sentimentResult.sentimentScore, confidenceIndex: sentimentResult.confidenceIndex}} : null);
+      if (isSupervisor) { // Only fetch global chat sentiment for supervisors
+        const lastCustomerMessage = [...currentMessages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
+        if (lastCustomerMessage) {
+          const sentimentResult = await analyzeSentiment({ text: lastCustomerMessage.content });
+          // Update sentiment on individual message (already happening for all users in MessageBubble)
+          setMessages(prevMessages => prevMessages.map(m => 
+              m.id === lastCustomerMessage.id ? { ...m, sentimentScore: sentimentResult.sentimentScore } : m
+          ));
+          if (chat) {
+              setChat(prevChat => prevChat ? {...prevChat, aiAnalysis: {sentimentScore: sentimentResult.sentimentScore, confidenceIndex: sentimentResult.confidenceIndex}} : null);
+          }
         }
       }
 
     } catch (error) {
-      console.error("AI suggestion error:", error);
-      // toast({ title: "Erro de IA", description: "Não foi possível buscar sugestões da IA.", variant: "destructive" });
+      console.error("AI suggestion/sentiment error:", error);
     }
     setIsLoadingAi(false);
   };
@@ -179,7 +227,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       targetAgentId: chat.assignedTo || undefined, 
     };
     setMessages(prevMessages => [...prevMessages, newWhisperMessage]);
-    toast({ title: "Sussurro enviado", description: "Sua nota interna foi enviada para o agente." });
+    toast({ title: "Sussurro enviado", description: "Sua nota interna foi enviada." });
   };
 
   const handleTransferChatSubmit = (targetType: 'queue' | 'agent', targetId: string) => {
@@ -192,7 +240,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   };
   
   const handleSupervisorAssumeChat = () => {
-    if (!chat) return;
+    if (!chat || !isSupervisor) return;
     setChat(prev => prev ? {...prev, assignedTo: currentUser.id, status: 'IN_PROGRESS'} : null);
     toast({
       title: "Chat Assumido (Supervisor)",
@@ -201,7 +249,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   };
 
   const handleAgentAssumeChat = () => {
-    if (!chat) return;
+    if (!chat || !isAgent) return;
     setChat(prev => prev ? {...prev, assignedTo: currentUser.id, status: 'IN_PROGRESS'} : null);
     toast({
       title: "Chat Assumido",
@@ -210,7 +258,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   };
 
   const handleAgentStartChat = () => {
-    if (!chat) return;
+    if (!chat || !isAgent) return;
     setChat(prev => prev ? {...prev, status: 'IN_PROGRESS'} : null);
     toast({
       title: "Chat Iniciado",
@@ -228,7 +276,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   }
 
   const handleSaveSupervisorEvaluation = () => {
-    if(!chat) return;
+    if(!chat || !isSupervisor) return;
     toast({
       title: "Avaliação do Supervisor Salva (Simulação)",
       description: `Avaliação para o chat ${chat.id}: Score ${supervisorEvaluationScore}, Feedback: "${supervisorFeedback || 'N/A'}"`,
@@ -236,11 +284,82 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   };
   
   const handleSelectKbArticle = (article: KnowledgeBaseArticle) => {
-    toast({
-      title: `BC Selecionado: ${article.title}`,
-      description: "Detalhes do artigo seriam mostrados ou conteúdo colado.",
-    });
+    // For agents, this could paste content into the input or open a detailed view.
+    // For now, just a toast.
+    const articlePreview = article.summary || article.content.substring(0, 100) + "...";
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(articlePreview);
+        toast({
+            title: `Resumo de "${article.title}" copiado!`,
+            description: "Cole no chat se desejar.",
+        });
+    } else {
+        toast({
+            title: `Artigo Selecionado: ${article.title}`,
+            description: "Conteúdo do artigo seria usado aqui.",
+        });
+    }
   };
+
+  const handleOracleQuerySubmit = async (e?: FormEvent<HTMLFormElement>, suggestion?: string) => {
+    if (e) e.preventDefault();
+    const currentInput = suggestion || oracleUserInput;
+    if (currentInput.trim() === '' || !chat) return;
+
+    const userOracleMessage: OracleUIMessage = {
+      id: `oracle-user-${Date.now()}`,
+      text: currentInput,
+      sender: 'user',
+      timestamp: new Date(),
+    };
+    setOracleMessages(prev => [...prev, userOracleMessage]);
+    setOracleUserInput('');
+    setIsOracleLoading(true);
+    setOracleSuggestions([]);
+
+    try {
+      // For simplicity, the Oracle in chat will use all text-based KB items accessible to any agent/supervisor
+      // A more refined version might filter based on currentUser's permissions or agent's current queue context
+      const accessibleKbIds = MOCK_KB_ITEMS
+        .filter(item => item.type === 'file' && (item.mimeType === 'text/markdown' || item.mimeType === 'text/plain' || (item.content && item.content.trim() !== '')))
+        .map(item => item.id);
+
+      const inputForFlow: OracleQueryInput = { userInput: currentInput, selectedKbIds: accessibleKbIds };
+      const result: OracleQueryOutput = await queryOracle(inputForFlow);
+      
+      const oracleResponseMessage: OracleUIMessage = {
+        id: `oracle-response-${Date.now()}`,
+        text: result.oracleResponse,
+        sender: 'oracle',
+        timestamp: new Date(),
+      };
+      setOracleMessages(prev => [...prev, oracleResponseMessage]);
+
+      if (result.suggestedPrompts && result.suggestedPrompts.length > 0) {
+        setOracleSuggestions(result.suggestedPrompts);
+      } else {
+        setOracleSuggestions(DEFAULT_ORACLE_PROMPT_SUGGESTIONS); // Fallback if no suggestions
+      }
+
+    } catch (error) {
+      console.error('Erro ao consultar o Oráculo no chat:', error);
+      const errorMessage: OracleUIMessage = {
+        id: `oracle-error-${Date.now()}`,
+        text: 'Desculpe, ocorreu um erro ao tentar processar sua solicitação ao Oráculo.',
+        sender: 'oracle',
+        timestamp: new Date(),
+      };
+      setOracleMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsOracleLoading(false);
+    }
+  };
+
+  const handleOracleSuggestionClick = (suggestion: string) => {
+    setOracleUserInput(suggestion); 
+    handleOracleQuerySubmit(undefined, suggestion);
+  };
+
 
   if (!chat) {
     return (
@@ -253,6 +372,9 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   }
 
   const assignedAgentDetails = MOCK_USERS.find(u => u.id === chat.assignedTo);
+  const agentCanTakeActionOnWaitingChat = isAgent && chat.status === 'WAITING' && (!chat.assignedTo || !currentUser.assignedQueueIds?.includes(chat.queueId));
+  const agentCanStartAssignedWaitingChat = isAgent && chat.status === 'WAITING' && isCurrentUserAssigned;
+  const agentCanManageInProgressChat = isAgent && chat.status === 'IN_PROGRESS' && isCurrentUserAssigned;
 
   return (
     <div className="flex h-full max-h-screen">
@@ -273,22 +395,22 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
-             {chat.aiAnalysis && (
+             {isSupervisor && chat.aiAnalysis && ( // Only show global sentiment for supervisor
                 <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} simple />
              )}
 
             {/* Actions for AGENT_HUMAN */}
-            {isAgent && chat.status === 'WAITING' && (!chat.assignedTo || chat.assignedTo !== currentUser.id) && (
+            {isAgent && chat.status === 'WAITING' && (!chat.assignedTo || chat.assignedTo !== currentUser.id) && currentUser.assignedQueueIds?.includes(chat.queueId) && (
                  <Button variant="outline" size="sm" onClick={handleAgentAssumeChat}>
                     <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir Chat</span>
                 </Button>
             )}
-            {isAgent && chat.status === 'WAITING' && isCurrentUserAssigned && (
+            {agentCanStartAssignedWaitingChat && (
                 <Button variant="outline" size="sm" onClick={handleAgentStartChat}>
                     <Play className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Iniciar Chat</span>
                 </Button>
             )}
-            {isAgent && isCurrentUserAssigned && chat.status === 'IN_PROGRESS' && (
+            {agentCanManageInProgressChat && (
               <>
                 <ChatTransferDialog 
                     queues={MOCK_QUEUES.filter(q => q.isActive)} 
@@ -309,7 +431,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                     agents={MOCK_USERS.filter(u => u.userType === "AGENT_HUMAN")} 
                     onTransfer={handleTransferChatSubmit} 
                 />
-                {!isCurrentUserAssigned && (
+                {!isCurrentUserAssigned && ( // Show assume button only if supervisor is not already assigned
                      <Button variant="outline" size="sm" onClick={handleSupervisorAssumeChat} title="Assumir Chat">
                         <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir</span>
                     </Button>
@@ -326,7 +448,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>Ver Informações de Contato</DropdownMenuItem>
                 <DropdownMenuItem>Bloquear Usuário</DropdownMenuItem>
-                {/* Transfer and Resolve moved to header for direct access */}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">Encerrar Chat (Forçado)</DropdownMenuItem>
               </DropdownMenuContent>
@@ -363,8 +484,11 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
             <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
             {isSupervisor ? (
               <TabsTrigger value="ia_eval" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Análise IA</TabsTrigger>
-            ) : (
-              <TabsTrigger value="kb" className="text-xs px-1"><BookOpen className="h-4 w-4"/> BC</TabsTrigger>
+            ) : ( // Agent sees BC and Oracle
+              <>
+                <TabsTrigger value="kb" className="text-xs px-1"><BookOpen className="h-4 w-4"/> BC</TabsTrigger>
+                <TabsTrigger value="oracle" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Oráculo</TabsTrigger>
+              </>
             )}
           </TabsList>
           
@@ -382,7 +506,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                      <p><strong>Agente:</strong> {assignedAgentDetails?.name || "Não atribuído"}</p>
                   </CardContent>
                 </Card>
-                 {chat.aiAnalysis && (
+                 {isSupervisor && chat.aiAnalysis && ( // Global sentiment only for supervisor
                   <Card>
                     <CardHeader><CardTitle className="text-base">Sentimento (IA)</CardTitle></CardHeader>
                     <CardContent>
@@ -398,8 +522,10 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
               <ScrollArea className="h-full">
                 <div className="p-4">
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    Notas internas (sussurros) são exibidas inline na conversa. Esta área pode ser usada para outras anotações.
+                    Notas internas (sussurros) são exibidas inline na conversa. Use esta área para anotações gerais sobre o atendimento.
                   </p>
+                  <Textarea placeholder="Suas anotações privadas sobre este chat..." className="mt-2 min-h-[100px]" />
+                  <Button variant="outline" size="sm" className="mt-2 w-full">Salvar Anotação</Button>
                 </div>
               </ScrollArea>
             </TabsContent>
@@ -459,15 +585,98 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
           )}
 
           {!isSupervisor && (
-            <TabsContent value="kb" className="flex-1 overflow-y-auto p-0">
-              <ScrollArea className="h-full p-4 space-y-3">
-                {isLoadingAi && !suggestedArticles.length && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin text-primary"/></div>}
-                {!isLoadingAi && suggestedArticles.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum artigo relevante encontrado.</p>}
-                {suggestedArticles.map(article => (
-                  <KnowledgeBaseSuggestionItem key={article.id} article={article} onSelectArticle={handleSelectKbArticle} />
-                ))}
-              </ScrollArea>
-            </TabsContent>
+            <>
+              <TabsContent value="kb" className="flex-1 overflow-y-auto p-0">
+                <ScrollArea className="h-full p-4 space-y-3">
+                  {isLoadingAi && !suggestedArticles.length && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin text-primary"/></div>}
+                  {!isLoadingAi && suggestedArticles.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum artigo relevante encontrado.</p>}
+                  {suggestedArticles.map(article => (
+                    <KnowledgeBaseSuggestionItem key={article.id} article={article} onSelectArticle={handleSelectKbArticle} />
+                  ))}
+                </ScrollArea>
+              </TabsContent>
+              <TabsContent value="oracle" className="flex-1 flex flex-col overflow-hidden p-0">
+                <div className="p-4 border-b">
+                   <h3 className="text-sm font-medium text-foreground flex items-center"><Sparkles className="h-4 w-4 mr-2 text-primary" />Oráculo IA</h3>
+                   <p className="text-xs text-muted-foreground">Peça ajuda para responder ou encontrar informações.</p>
+                </div>
+                <ScrollArea className="flex-1 p-4 space-y-3" ref={oracleScrollAreaRef}>
+                    {oracleMessages.map(msg => (
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          'flex items-end gap-2',
+                          msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                        )}
+                      >
+                        {msg.sender === 'oracle' && (
+                          <Avatar className="h-7 w-7 border-2 border-primary/30">
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                              <Sparkles className="h-3 w-3"/>
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        <div
+                          className={cn(
+                            'max-w-xs rounded-md px-3 py-1.5 shadow-sm text-xs',
+                            msg.sender === 'user'
+                              ? 'bg-secondary text-secondary-foreground rounded-br-none'
+                              : 'bg-card text-card-foreground rounded-bl-none border'
+                          )}
+                        >
+                          <p className="whitespace-pre-wrap">{msg.text}</p>
+                           <p className="text-xs text-right opacity-60 mt-0.5">
+                            {msg.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {isOracleLoading && (
+                        <div className="flex justify-start items-center gap-2">
+                            <Avatar className="h-7 w-7 border-2 border-primary/30"><AvatarFallback className="bg-primary/10 text-primary text-xs"><Sparkles className="h-3 w-3"/></AvatarFallback></Avatar>
+                            <div className="bg-card text-card-foreground rounded-md px-3 py-1.5 shadow-sm inline-flex items-center text-xs border">
+                                <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                <span>Pensando...</span>
+                            </div>
+                        </div>
+                    )}
+                     {oracleMessages.length === 0 && !isOracleLoading && (
+                        <p className="text-xs text-muted-foreground text-center py-2">Faça uma pergunta ao Oráculo.</p>
+                     )}
+                </ScrollArea>
+                 {oracleSuggestions.length > 0 && !isOracleLoading && (
+                    <div className="p-3 border-t">
+                        <p className="text-xs text-muted-foreground mb-1.5">Sugestões:</p>
+                        <div className="space-y-1.5">
+                        {oracleSuggestions.slice(0,2).map((s, i) => (
+                            <Button key={i} variant="outline" size="xs" className="w-full justify-start text-left h-auto py-1 text-xs" onClick={() => handleOracleSuggestionClick(s)}>
+                                <HelpCircle className="mr-1.5 h-3 w-3"/>{s}
+                            </Button>
+                        ))}
+                        </div>
+                    </div>
+                 )}
+                <form onSubmit={handleOracleQuerySubmit} className="p-3 border-t flex items-center gap-2 bg-background">
+                    <Textarea
+                        value={oracleUserInput}
+                        onChange={e => setOracleUserInput(e.target.value)}
+                        placeholder="Pergunte ao Oráculo..."
+                        className="flex-1 resize-none min-h-[36px] text-xs"
+                        rows={1}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleOracleQuerySubmit(e);
+                          }
+                        }}
+                        disabled={isOracleLoading}
+                    />
+                    <Button type="submit" size="iconSm" variant="ghost" disabled={isOracleLoading || oracleUserInput.trim() === ''} className="bg-primary hover:bg-primary/90 h-9 w-9">
+                        <SendHorizonal className="h-4 w-4 text-primary-foreground" />
+                    </Button>
+                </form>
+              </TabsContent>
+            </>
           )}
         </Tabs>
       </aside>
@@ -477,5 +686,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 };
 
 export default ActiveChatArea;
+    
 
     
