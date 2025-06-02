@@ -26,21 +26,15 @@ const ChatCard = ({ chat }: { chat: Chat }) => {
   const router = useRouter();
   const { toast } = useToast();
   const assignedAgent = MOCK_USERS.find(u => u.id === chat.assignedTo);
-  const isSupervisor = MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'ADMIN';
+  const isCurrentUserSupervisor = MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'ADMIN';
 
   const handleViewChat = (chatId: string) => {
-    // Navega para a tela de chat, o modo supervisor será determinado lá baseado no MOCK_CURRENT_USER
-    router.push(`/chat?chatId=${chatId}`);
-    if (isSupervisor) {
-        toast({
-            title: "Visualizando Chat (Supervisor)",
-            description: `Você está visualizando o chat ID: ${chatId}. Use as opções na tela de chat para intervir.`,
-        });
+    if (isCurrentUserSupervisor) {
+      router.push(`/supervisor/chat/${chatId}`);
+    } else {
+      router.push(`/chat?chatId=${chatId}`);
     }
   };
-
-  // Ações de "Assumir" e "Sussurrar" foram movidas para a tela de chat do supervisor.
-  // Mantemos o botão de visualização aqui.
 
   return (
     <Card className="p-3 bg-card hover:shadow-lg transition-shadow mb-3">
@@ -49,8 +43,8 @@ const ChatCard = ({ chat }: { chat: Chat }) => {
         <Badge 
           variant={chat.status === 'IN_PROGRESS' ? 'default' : chat.status === 'WAITING' ? 'secondary' : 'outline'}
           className={cn(
-            chat.priority === 'HIGH' && 'bg-accent text-accent-foreground',
-            chat.priority === 'URGENT' && 'bg-destructive text-destructive-foreground'
+            chat.priority === 'URGENT' && 'bg-destructive text-destructive-foreground',
+            chat.priority === 'HIGH' && 'bg-accent text-accent-foreground'
           )}
         >
           {chat.status} {chat.priority !== 'MEDIUM' && `(${chat.priority})`}
@@ -62,9 +56,8 @@ const ChatCard = ({ chat }: { chat: Chat }) => {
       <p className="text-xs text-muted-foreground truncate mb-2">{chat.lastMessagePreview}</p>
       <div className="flex gap-1 justify-end">
         <Button variant="outline" size="xs" onClick={() => handleViewChat(chat.id)} title="Visualizar Chat">
-          <Eye className="h-3 w-3 mr-1" /> {isSupervisor ? 'Supervisionar' : 'Ver'}
+          <Eye className="h-3 w-3 mr-1" /> {isCurrentUserSupervisor ? 'Supervisionar' : 'Ver'}
         </Button>
-         {/* Botões de Sussurrar e Assumir são removidos do card, pois estarão na tela de chat do supervisor */}
       </div>
     </Card>
   );
