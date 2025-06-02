@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, FormEvent } from 'react';
-import type { Chat, Message, User, KnowledgeBaseArticle, Queue, KBItem, MessageType } from '@/types';
+import type { Chat, Message, User, KnowledgeBaseArticle, Queue, KBItem, MessageType, OracleQueryInput, OracleQueryOutput } from '@/types';
 import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ITEMS, MOCK_CURRENT_USER } from '@/lib/mock-data';
 import MessageBubble from './message-bubble';
 import MessageInputArea from './message-input-area';
@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { analyzeSentiment } from '@/ai/flows/sentiment-analysis';
 import { suggestKnowledgeBaseArticles } from '@/ai/flows/knowledge-base-suggestions';
-import { queryOracle, type OracleQueryInput, type OracleQueryOutput } from '@/ai/flows/oracle-query-flow';
+import { queryOracle } from '@/ai/flows/oracle-query-flow';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
@@ -82,7 +82,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   const isAgent = currentUser.userType === 'AGENT_HUMAN';
   const isCurrentUserAssigned = chat?.assignedTo === currentUser.id;
 
-  // Oracle UI State for Agent
   const [oracleUserInput, setOracleUserInput] = useState('');
   const [oracleMessages, setOracleMessages] = useState<OracleUIMessage[]>([]);
   const [isOracleLoading, setIsOracleLoading] = useState(false);
@@ -94,7 +93,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     if (isSupervisor) {
       return initialAction === 'whisper' ? 'notes' : 'ia_eval';
     }
-    // Agent default tab
     return initialAction === 'whisper' ? 'notes' : 'details';
   });
 
@@ -107,9 +105,9 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     setOracleSuggestions(DEFAULT_ORACLE_PROMPT_SUGGESTIONS);
     
     if (initialChat) {
-      if (!isSupervisor) { // Fetch KB suggestions only for agents
+      if (!isSupervisor) { 
           fetchAiSuggestions(initialChat.messages);
-      } else { // Fetch sentiment for supervisor
+      } else { 
         const lastCustomerMessage = [...initialChat.messages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
         if (lastCustomerMessage && lastCustomerMessage.sentimentScore === undefined) {
             fetchSentiment(lastCustomerMessage);
@@ -383,7 +381,6 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 
   const assignedAgentDetails = MOCK_USERS.find(u => u.id === chat.assignedTo);
   
-  // Agent specific button logic
   const agentCanAssumeWaitingChat = isAgent && chat.status === 'WAITING' && (!chat.assignedTo || chat.assignedTo !== currentUser.id) && currentUser.assignedQueueIds?.includes(chat.queueId);
   const agentCanStartAssignedWaitingChat = isAgent && chat.status === 'WAITING' && isCurrentUserAssigned;
   const agentCanManageInProgressChat = isAgent && chat.status === 'IN_PROGRESS' && isCurrentUserAssigned;
@@ -392,34 +389,34 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   return (
     <div className="flex h-full max-h-screen">
       <div className="flex flex-1 flex-col bg-background">
-        <header className="flex items-center justify-between border-b p-3 md:p-4">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 border">
+        <header className="flex items-center justify-between border-b p-3 gap-2 md:p-4">
+          <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+            <Avatar className="h-9 w-9 sm:h-10 sm:w-10 border flex-shrink-0">
               <AvatarImage src={chat.avatarUrl} alt={chat.customerName} data-ai-hint="person avatar"/>
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {chat.customerName.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h2 className="font-semibold text-foreground">{chat.customerName}</h2>
-              <p className="text-xs text-muted-foreground">
+            <div className="overflow-hidden">
+              <h2 className="font-semibold text-foreground truncate">{chat.customerName}</h2>
+              <p className="text-xs text-muted-foreground truncate">
                 {chat.status === 'IN_PROGRESS' && assignedAgentDetails ? `Conversando com ${assignedAgentDetails.name}` : chat.status}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
              {isSupervisor && chat.aiAnalysis && (
                 <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} simple />
              )}
 
             {agentCanAssumeWaitingChat && (
-                 <Button variant="outline" size="sm" onClick={handleAgentAssumeChat}>
-                    <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir Chat</span>
+                 <Button variant="outline" size="sm" onClick={handleAgentAssumeChat} title="Assumir Chat">
+                    <CornerRightUp className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Assumir</span>
                 </Button>
             )}
             {agentCanStartAssignedWaitingChat && (
-                <Button variant="outline" size="sm" onClick={handleAgentStartChat}>
-                    <Play className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Iniciar Chat</span>
+                <Button variant="outline" size="sm" onClick={handleAgentStartChat} title="Iniciar Chat">
+                    <Play className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Iniciar</span>
                 </Button>
             )}
             {agentCanManageInProgressChat && (
@@ -430,7 +427,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                     onTransfer={handleTransferChatSubmit} 
                 />
                 <Button variant="outline" size="sm" onClick={handleResolveChat} title="Resolver Chat" className="text-green-600 hover:text-green-700 border-green-600 hover:border-green-700">
-                    <CheckCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Resolver</span>
+                    <CheckCircle className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Resolver</span>
                 </Button>
               </>
             )}
@@ -444,17 +441,17 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                 />
                 {!isCurrentUserAssigned && (
                      <Button variant="outline" size="sm" onClick={handleSupervisorAssumeChat} title="Assumir Chat">
-                        <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir</span>
+                        <CornerRightUp className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Assumir</span>
                     </Button>
                 )}
                  <Button variant="outline" size="sm" onClick={handleResolveChat} title="Resolver Chat" className="text-green-600 hover:text-green-700 border-green-600 hover:border-green-700">
-                    <CheckCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Resolver</span>
+                    <CheckCircle className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Resolver</span>
                 </Button>
               </>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9"><MoreVertical className="h-4 w-4 sm:h-5 sm:w-5" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>Ver Informações de Contato</DropdownMenuItem>
@@ -493,16 +490,16 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
           <TabsList className={cn("grid w-full rounded-none border-b", isSupervisor ? "grid-cols-3" : "grid-cols-4")}>
              {isSupervisor ? (
                 <>
-                    <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
-                    <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
-                    <TabsTrigger value="ia_eval" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Análise IA</TabsTrigger>
+                    <TabsTrigger value="details" className="text-xs px-1 py-2.5"><Info className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Detalhes</span></TabsTrigger>
+                    <TabsTrigger value="notes" className="text-xs px-1 py-2.5"><MessageSquareQuote className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Notas</span></TabsTrigger>
+                    <TabsTrigger value="ia_eval" className="text-xs px-1 py-2.5"><Sparkles className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Análise IA</span></TabsTrigger>
                 </>
              ) : (
                 <>
-                    <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
-                    <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
-                    <TabsTrigger value="kb" className="text-xs px-1"><BookOpen className="h-4 w-4"/> BC</TabsTrigger>
-                    <TabsTrigger value="oracle" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Oráculo</TabsTrigger>
+                    <TabsTrigger value="details" className="text-xs px-1 py-2.5"><Info className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Detalhes</span></TabsTrigger>
+                    <TabsTrigger value="notes" className="text-xs px-1 py-2.5"><MessageSquareQuote className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Notas</span></TabsTrigger>
+                    <TabsTrigger value="kb" className="text-xs px-1 py-2.5"><BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">BC</span></TabsTrigger>
+                    <TabsTrigger value="oracle" className="text-xs px-1 py-2.5"><Sparkles className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Oráculo</span></TabsTrigger>
                 </>
              )}
           </TabsList>

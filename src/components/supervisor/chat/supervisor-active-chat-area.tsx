@@ -6,9 +6,8 @@ import type { Chat, Message, User, KnowledgeBaseArticle, Queue, KBItem, MessageT
 import { MOCK_USERS, MOCK_QUEUES, MOCK_KB_ITEMS, MOCK_CURRENT_USER } from '@/lib/mock-data';
 import SupervisorMessageBubble from './supervisor-message-bubble';
 import SupervisorMessageInputArea from './supervisor-message-input-area';
-// KnowledgeBaseSuggestionItem is removed as supervisor view won't show KB suggestions in this panel
-import SentimentDisplay from '@/components/chat/sentiment-display'; // Re-usable
-import ChatTransferDialog from '@/components/chat/chat-transfer-dialog'; // Re-usable
+import SentimentDisplay from '@/components/chat/sentiment-display'; 
+import ChatTransferDialog from '@/components/chat/chat-transfer-dialog'; 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { analyzeSentiment } from '@/ai/flows/sentiment-analysis';
-// suggestKnowledgeBaseArticles removed as KB suggestions are not for supervisor in this panel
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,7 +33,6 @@ type SupervisorActiveChatAreaProps = {
   chat: Chat | null;
 };
 
-// Simulated data for IA Mãe - This would ideally come from a Genkit flow or service
 const SIMULATED_IA_MAE_ANALYSIS = {
   evaluationScore: 82,
   evaluationFeedback: "O agente demonstrou bom conhecimento do produto, mas poderia ser mais proativo em oferecer soluções alternativas. O cliente pareceu satisfeito no final.",
@@ -49,16 +46,15 @@ const SIMULATED_IA_MAE_ANALYSIS = {
 const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAreaProps) => {
   const [chat, setChat] = useState<Chat | null>(initialChat);
   const [messages, setMessages] = useState<Message[]>(initialChat?.messages || []);
-  const [isLoadingAi, setIsLoadingAi] = useState(false); // For sentiment, etc.
+  const [isLoadingAi, setIsLoadingAi] = useState(false); 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const [supervisorEvaluationScore, setSupervisorEvaluationScore] = useState(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
   const [supervisorFeedback, setSupervisorFeedback] = useState('');
-  const [activeTab, setActiveTab] = useState('ia_eval'); // Default to IA Eval for supervisor
+  const [activeTab, setActiveTab] = useState('ia_eval'); 
 
   const isSupervisorOrAdmin = MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'ADMIN';
-  // Supervisor can always whisper. Agent assigned to chat can also whisper if needed (though this is supervisor view)
   const canCurrentUserWhisper = isSupervisorOrAdmin || MOCK_CURRENT_USER.id === chat?.assignedTo;
 
 
@@ -67,7 +63,6 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
     setMessages(initialChat?.messages || []);
     
     if (initialChat) {
-      // Fetch sentiment for the last customer message if not already present
       const lastCustomerMessage = [...initialChat.messages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
       if (lastCustomerMessage && lastCustomerMessage.sentimentScore === undefined) {
         fetchSentiment(lastCustomerMessage);
@@ -77,7 +72,7 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
     }
     setSupervisorEvaluationScore(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
     setSupervisorFeedback('');
-    setActiveTab('ia_eval'); // Default to IA Eval for supervisor on chat change
+    setActiveTab('ia_eval'); 
 
   }, [initialChat]); 
 
@@ -109,10 +104,6 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
   };
   
   const handleSendMessage = (content: string, type: MessageType = 'text') => {
-    // Supervisors typically don't send messages directly as the customer-facing agent in this view
-    // They might assume chat first. This function can be adapted if direct sending is needed.
-    // For now, primary interaction is whisper or assuming chat.
-    // If MOCK_CURRENT_USER.id === chat?.assignedTo, then it's the supervisor acting as agent.
     if (!chat || MOCK_CURRENT_USER.id !== chat.assignedTo) {
         toast({title: "Ação não permitida", description: "Assuma o chat para enviar mensagens como agente.", variant: "destructive"});
         return;
@@ -122,8 +113,8 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
       id: `msg_${chat.id}_${Date.now()}`,
       chatId: chat.id,
       content,
-      type, // 'text'
-      sender: 'agent', // Supervisor is acting as agent
+      type, 
+      sender: 'agent', 
       senderId: MOCK_CURRENT_USER.id,
       senderName: MOCK_CURRENT_USER.name,
       timestamp: new Date(),
@@ -131,7 +122,6 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
     };
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
-    // Potentially re-fetch sentiment for the *next* customer message if AI is proactive
   };
 
   const handleSendWhisper = (content: string) => {
@@ -141,7 +131,7 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
       chatId: chat.id,
       content,
       type: 'whisper',
-      sender: 'supervisor', // Explicitly supervisor
+      sender: 'supervisor', 
       senderId: MOCK_CURRENT_USER.id,
       senderName: `${MOCK_CURRENT_USER.name}`, 
       timestamp: new Date(),
@@ -190,7 +180,6 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
   
 
   if (!chat) {
-    // This case should ideally be handled by the parent page, but as a fallback:
     return (
       <div className="flex h-full flex-col items-center justify-center bg-muted/30 p-8">
         <MessageSquareQuote className="h-16 w-16 text-muted-foreground/50 mb-4" />
@@ -205,23 +194,23 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
   return (
     <div className="flex h-full max-h-screen">
       <div className="flex flex-1 flex-col bg-background">
-        <header className="flex items-center justify-between border-b p-3 md:p-4">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 border">
+        <header className="flex items-center justify-between border-b p-3 gap-2 md:p-4">
+          <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+            <Avatar className="h-9 w-9 sm:h-10 sm:w-10 border flex-shrink-0">
               <AvatarImage src={chat.avatarUrl} alt={chat.customerName} data-ai-hint="person avatar"/>
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {chat.customerName.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h2 className="font-semibold text-foreground">{chat.customerName}</h2>
-              <p className="text-xs text-muted-foreground">
+            <div className="overflow-hidden">
+              <h2 className="font-semibold text-foreground truncate">{chat.customerName}</h2>
+              <p className="text-xs text-muted-foreground truncate">
                 {chat.status === 'IN_PROGRESS' && assignedAgent ? `Conversando com ${assignedAgent.name}` : chat.status}
                 {isCurrentUserAssigned && MOCK_CURRENT_USER.userType === 'SUPERVISOR' && " (Você está atribuído)"}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
              {chat.aiAnalysis && (
                 <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} simple />
              )}
@@ -234,17 +223,17 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
                 />
                 {!isCurrentUserAssigned && (
                   <Button variant="outline" size="sm" onClick={handleAssumeChat} title="Assumir Chat">
-                      <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir</span>
+                      <CornerRightUp className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Assumir</span>
                   </Button>
                 )}
                  <Button variant="outline" size="sm" onClick={handleResolveChat} title="Resolver Chat" className="text-green-600 hover:text-green-700 border-green-600 hover:border-green-700">
-                    <CheckCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Resolver</span>
+                    <CheckCircle className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Resolver</span>
                 </Button>
               </>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9"><MoreVertical className="h-4 w-4 sm:h-5 sm:w-5" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>Ver Informações de Contato</DropdownMenuItem>
@@ -273,7 +262,6 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
         <SupervisorMessageInputArea 
             onSendMessage={handleSendMessage} 
             onSendWhisper={handleSendWhisper}
-            // Disable input if chat is resolved/closed OR if supervisor hasn't assumed the chat yet
             disabled={chat.status === 'RESOLVED' || chat.status === 'CLOSED' || (!isCurrentUserAssigned && isSupervisorOrAdmin)}
             canWhisper={canCurrentUserWhisper}
             isAssigned={isCurrentUserAssigned}
@@ -284,9 +272,9 @@ const SupervisorActiveChatArea = ({ chat: initialChat }: SupervisorActiveChatAre
         <aside className="hidden lg:flex w-80 flex-col border-l bg-muted/20">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
             <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
-              <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
-              <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
-              <TabsTrigger value="ia_eval" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Análise IA</TabsTrigger>
+              <TabsTrigger value="details" className="text-xs px-1 py-2.5"><Info className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Detalhes</span></TabsTrigger>
+              <TabsTrigger value="notes" className="text-xs px-1 py-2.5"><MessageSquareQuote className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Notas</span></TabsTrigger>
+              <TabsTrigger value="ia_eval" className="text-xs px-1 py-2.5"><Sparkles className="h-3 w-3 sm:h-4 sm:w-4 mr-1"/><span className="hidden sm:inline">Análise IA</span></TabsTrigger>
             </TabsList>
             
             <TabsContent value="details" className="flex-1 overflow-y-auto p-0">
