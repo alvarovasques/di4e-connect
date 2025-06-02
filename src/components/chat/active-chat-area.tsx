@@ -88,15 +88,15 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   const [isOracleLoading, setIsOracleLoading] = useState(false);
   const [oracleSuggestions, setOracleSuggestions] = useState<string[]>(DEFAULT_ORACLE_PROMPT_SUGGESTIONS);
 
-  const [activeTab, setActiveTab] = useState(
-    initialAction === 'whisper' && (isSupervisor || isCurrentUserAssigned) 
-      ? 'notes' 
-      : isSupervisor 
-        ? 'ia_eval' 
-        : 'details' // Agent defaults to details
-  ); 
+  const canCurrentUserWhisper = isSupervisor || (isAgent && isCurrentUserAssigned);
 
-  const canCurrentUserWhisper = isSupervisor || isCurrentUserAssigned;
+  const [activeTab, setActiveTab] = useState(() => {
+    if (isSupervisor) {
+      return initialAction === 'whisper' ? 'notes' : 'ia_eval';
+    }
+    // Agent default tab
+    return initialAction === 'whisper' ? 'notes' : 'details';
+  });
 
 
   useEffect(() => {
@@ -107,22 +107,30 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     setOracleSuggestions(DEFAULT_ORACLE_PROMPT_SUGGESTIONS);
     
     if (initialChat) {
-      fetchAiSuggestions(initialChat.messages);
+      if (!isSupervisor) { // Fetch KB suggestions only for agents
+          fetchAiSuggestions(initialChat.messages);
+      } else { // Fetch sentiment for supervisor
+        const lastCustomerMessage = [...initialChat.messages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
+        if (lastCustomerMessage && lastCustomerMessage.sentimentScore === undefined) {
+            fetchSentiment(lastCustomerMessage);
+        } else if (lastCustomerMessage && lastCustomerMessage.sentimentScore !== undefined && chat && !chat.aiAnalysis) {
+            setChat(prevChat => prevChat ? {...prevChat, aiAnalysis: {sentimentScore: lastCustomerMessage.sentimentScore!, confidenceIndex: 1 }} : null);
+        }
+      }
     } else {
       setSuggestedArticles([]);
     }
     setSupervisorEvaluationScore(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
     setSupervisorFeedback('');
     
-    const newActiveTab = 
-        initialAction === 'whisper' && canCurrentUserWhisper 
-        ? 'notes' 
-        : isSupervisor 
-            ? 'ia_eval' 
-            : 'details';
+    let newActiveTab = isSupervisor ? 'ia_eval' : 'details';
+    if (initialAction === 'whisper' && canCurrentUserWhisper) {
+        newActiveTab = 'notes';
+    }
     setActiveTab(newActiveTab);
 
-  }, [initialChat, isSupervisor, isAgent, isCurrentUserAssigned, initialAction, canCurrentUserWhisper]); 
+
+  }, [initialChat, isSupervisor, isAgent, initialAction, canCurrentUserWhisper]); 
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -141,6 +149,24 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       }
     }
   }, [oracleMessages]);
+
+  const fetchSentiment = async (messageToAnalyze: Message) => {
+    if (!chat) return;
+    setIsLoadingAi(true);
+    try {
+      const sentimentResult = await analyzeSentiment({ text: messageToAnalyze.content });
+      setMessages(prevMessages => prevMessages.map(m => 
+          m.id === messageToAnalyze.id ? { ...m, sentimentScore: sentimentResult.sentimentScore } : m
+      ));
+      if (chat) {
+          setChat(prevChat => prevChat ? {...prevChat, aiAnalysis: {sentimentScore: sentimentResult.sentimentScore, confidenceIndex: sentimentResult.confidenceIndex}} : null);
+      }
+    } catch (error) {
+      console.error("AI sentiment analysis error:", error);
+      toast({ title: "Erro de IA", description: "Não foi possível buscar análise de sentimento.", variant: "destructive" });
+    }
+    setIsLoadingAi(false);
+  };
 
   const fetchAiSuggestions = async (currentMessages: Message[]) => {
     if (!chat || currentMessages.length === 0) return;
@@ -174,23 +200,8 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
         };
       }).slice(0, 3)); 
 
-      // Agent view does not show global chat sentiment from supervisor's perspective in header
-      // Individual customer message sentiment is handled in MessageBubble
-      if (isSupervisor) { 
-        const lastCustomerMessage = [...currentMessages].reverse().find(m => m.sender === 'customer' && m.type !== 'whisper');
-        if (lastCustomerMessage) {
-          const sentimentResult = await analyzeSentiment({ text: lastCustomerMessage.content });
-          setMessages(prevMessages => prevMessages.map(m => 
-              m.id === lastCustomerMessage.id ? { ...m, sentimentScore: sentimentResult.sentimentScore } : m
-          ));
-          if (chat) {
-              setChat(prevChat => prevChat ? {...prevChat, aiAnalysis: {sentimentScore: sentimentResult.sentimentScore, confidenceIndex: sentimentResult.confidenceIndex}} : null);
-          }
-        }
-      }
-
     } catch (error) {
-      console.error("AI suggestion/sentiment error:", error);
+      console.error("AI suggestion error:", error);
     }
     setIsLoadingAi(false);
   };
@@ -210,7 +221,9 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     };
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
-    fetchAiSuggestions(updatedMessages); 
+    if (!isSupervisor) {
+      fetchAiSuggestions(updatedMessages); 
+    }
   };
 
   const handleSendWhisper = (content: string) => {
@@ -369,9 +382,12 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   }
 
   const assignedAgentDetails = MOCK_USERS.find(u => u.id === chat.assignedTo);
-  const agentCanTakeActionOnWaitingChat = isAgent && chat.status === 'WAITING' && (!chat.assignedTo || chat.assignedTo !== currentUser.id) && currentUser.assignedQueueIds?.includes(chat.queueId);
+  
+  // Agent specific button logic
+  const agentCanAssumeWaitingChat = isAgent && chat.status === 'WAITING' && (!chat.assignedTo || chat.assignedTo !== currentUser.id) && currentUser.assignedQueueIds?.includes(chat.queueId);
   const agentCanStartAssignedWaitingChat = isAgent && chat.status === 'WAITING' && isCurrentUserAssigned;
   const agentCanManageInProgressChat = isAgent && chat.status === 'IN_PROGRESS' && isCurrentUserAssigned;
+
 
   return (
     <div className="flex h-full max-h-screen">
@@ -396,7 +412,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                 <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} simple />
              )}
 
-            {agentCanTakeActionOnWaitingChat && (
+            {agentCanAssumeWaitingChat && (
                  <Button variant="outline" size="sm" onClick={handleAgentAssumeChat}>
                     <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir Chat</span>
                 </Button>
@@ -475,16 +491,20 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       <aside className="hidden lg:flex w-80 flex-col border-l bg-muted/20">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
           <TabsList className={cn("grid w-full rounded-none border-b", isSupervisor ? "grid-cols-3" : "grid-cols-4")}>
-            <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
-            <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
-            {isSupervisor ? (
-              <TabsTrigger value="ia_eval" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Análise IA</TabsTrigger>
-            ) : (
-              <>
-                <TabsTrigger value="kb" className="text-xs px-1"><BookOpen className="h-4 w-4"/> BC</TabsTrigger>
-                <TabsTrigger value="oracle" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Oráculo</TabsTrigger>
-              </>
-            )}
+             {isSupervisor ? (
+                <>
+                    <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
+                    <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
+                    <TabsTrigger value="ia_eval" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Análise IA</TabsTrigger>
+                </>
+             ) : (
+                <>
+                    <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
+                    <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
+                    <TabsTrigger value="kb" className="text-xs px-1"><BookOpen className="h-4 w-4"/> BC</TabsTrigger>
+                    <TabsTrigger value="oracle" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Oráculo</TabsTrigger>
+                </>
+             )}
           </TabsList>
           
           <TabsContent value="details" className="flex-1 overflow-y-auto p-0">

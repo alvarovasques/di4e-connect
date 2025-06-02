@@ -327,7 +327,7 @@ export const MOCK_ROLES: Role[] = [
       'view_reports_full', 'manage_queues', 'supervisor_whisper_chat', 'supervisor_view_all_chats', 'access_support_page',
       'kb_view_personal', 'kb_view_team_all', 'kb_view_queue_all', 'kb_view_general', 
       'kb_manage_team_all', 'kb_manage_queue_all', 'kb_manage_general', 'kb_create_item',
-      'manage_users', 'manage_roles', 'manage_ai_agents', // Adicionado manage_roles e manage_ai_agents para Supervisor também
+      'manage_users', 'manage_roles', 'manage_ai_agents', 'access_admin_section',
     ], 
     description: 'Gerencia agentes e filas, visualiza relatórios, gerencia KB e usuários (exceto admins), cargos e agentes IA.' 
   },
@@ -375,3 +375,4 @@ export const MOCK_AI_MODELS: AiModel[] = [
     
 
     
+
