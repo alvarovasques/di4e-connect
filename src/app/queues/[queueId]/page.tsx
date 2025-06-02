@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Card } from "@/components/ui/card"; // CardContent, CardDescription, CardHeader, CardTitle
+import { Card } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,30 +26,21 @@ const ChatCard = ({ chat }: { chat: Chat }) => {
   const router = useRouter();
   const { toast } = useToast();
   const assignedAgent = MOCK_USERS.find(u => u.id === chat.assignedTo);
+  const isSupervisor = MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'ADMIN';
 
   const handleViewChat = (chatId: string) => {
+    // Navega para a tela de chat, o modo supervisor será determinado lá baseado no MOCK_CURRENT_USER
     router.push(`/chat?chatId=${chatId}`);
-    toast({
-      title: "Visualizando Chat (Supervisor)",
-      description: `Você está visualizando o chat ID: ${chatId}. Você pode sussurrar ou assumir o controle na tela de chat.`,
-    });
+    if (isSupervisor) {
+        toast({
+            title: "Visualizando Chat (Supervisor)",
+            description: `Você está visualizando o chat ID: ${chatId}. Use as opções na tela de chat para intervir.`,
+        });
+    }
   };
 
-  const handleAssumeChat = (chatId: string) => {
-    toast({
-      title: "Chat Assumido (Simulação)",
-      description: `Supervisor assumiu o chat ID: ${chatId}.`,
-    });
-    // Em uma app real: MOCK_CHATS.find(c => c.id === chatId).assignedTo = MOCK_CURRENT_USER.id;
-  };
-  
-  const handleWhisper = (chatId: string) => {
-     router.push(`/chat?chatId=${chatId}&action=whisper`);
-     toast({
-      title: "Sussurrar no Chat (Supervisor)",
-      description: `Redirecionando para o chat ID: ${chatId} para enviar um sussurro.`,
-    });
-  }
+  // Ações de "Assumir" e "Sussurrar" foram movidas para a tela de chat do supervisor.
+  // Mantemos o botão de visualização aqui.
 
   return (
     <Card className="p-3 bg-card hover:shadow-lg transition-shadow mb-3">
@@ -71,14 +62,9 @@ const ChatCard = ({ chat }: { chat: Chat }) => {
       <p className="text-xs text-muted-foreground truncate mb-2">{chat.lastMessagePreview}</p>
       <div className="flex gap-1 justify-end">
         <Button variant="outline" size="xs" onClick={() => handleViewChat(chat.id)} title="Visualizar Chat">
-          <Eye className="h-3 w-3" />
+          <Eye className="h-3 w-3 mr-1" /> {isSupervisor ? 'Supervisionar' : 'Ver'}
         </Button>
-         <Button variant="outline" size="xs" onClick={() => handleWhisper(chat.id)} title="Sussurrar para Agente">
-          <MessageSquareQuote className="h-3 w-3" />
-        </Button>
-        <Button variant="outline" size="xs" onClick={() => handleAssumeChat(chat.id)} title="Assumir Chat">
-          <CornerRightUp className="h-3 w-3" />
-        </Button>
+         {/* Botões de Sussurrar e Assumir são removidos do card, pois estarão na tela de chat do supervisor */}
       </div>
     </Card>
   );
@@ -90,8 +76,6 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
   const { toast } = useToast();
   const { queueId } = params;
 
-  // Para este protótipo, MOCK_QUEUES é a fonte da verdade. Em um app real, 
-  // você pode precisar de um estado se as filas forem editáveis nesta página ou para evitar re-renders desnecessários.
   const allQueues = MOCK_QUEUES; 
 
   const currentUserRole = MOCK_ROLES.find(role => role.id === MOCK_CURRENT_USER.roleId);
@@ -202,5 +186,3 @@ export default function QueueKanbanPage({ params }: { params: { queueId: string 
     </div>
   );
 }
-
-    

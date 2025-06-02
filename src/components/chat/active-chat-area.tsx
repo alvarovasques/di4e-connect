@@ -13,7 +13,7 @@ import ChatTransferDialog from './chat-transfer-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, BookOpen, Bot, Info, Loader2, MessageSquareQuote, MoreVertical, Phone, Video, UsersIcon } from 'lucide-react';
+import { AlertTriangle, BookOpen, Bot, CheckCircle, CornerRightUp, Info, Loader2, MessageSquareQuote, MoreVertical, Phone, Send, ShieldCheck, Sparkles, Video, UsersIcon, SlidersHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,15 +25,33 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { analyzeSentiment } from '@/ai/flows/sentiment-analysis';
 import { suggestKnowledgeBaseArticles } from '@/ai/flows/knowledge-base-suggestions';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { Slider } from '../ui/slider';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useSearchParams } from 'next/navigation';
 
 type ActiveChatAreaProps = {
   chat: Chat | null;
 };
 
+// Simulated data for IA Mãe
+const SIMULATED_IA_MAE_ANALYSIS = {
+  evaluationScore: 82,
+  evaluationFeedback: "O agente demonstrou bom conhecimento do produto, mas poderia ser mais proativo em oferecer soluções alternativas. O cliente pareceu satisfeito no final.",
+  recommendations: [
+    "Sugerir o artigo da BC sobre 'Devoluções' se o cliente mencionar insatisfação com o produto.",
+    "Usar uma saudação mais personalizada no início da conversa.",
+    "Confirmar a resolução do problema antes de encerrar o chat.",
+  ],
+};
+
 const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
+  const searchParams = useSearchParams();
+  const initialAction = searchParams.get('action');
+
   const [chat, setChat] = useState<Chat | null>(initialChat);
   const [messages, setMessages] = useState<Message[]>(initialChat?.messages || []);
   const [whisperNotes, setWhisperNotes] = useState<WhisperNote[]>(MOCK_WHISPER_NOTES.filter(note => note.chatId === initialChat?.id));
@@ -41,6 +59,13 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  const [supervisorEvaluationScore, setSupervisorEvaluationScore] = useState(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
+  const [supervisorFeedback, setSupervisorFeedback] = useState('');
+  const [activeTab, setActiveTab] = useState(initialAction === 'whisper' ? 'notes' : 'details');
+
+  const isSupervisor = MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'ADMIN';
+
 
   useEffect(() => {
     setChat(initialChat);
@@ -51,7 +76,13 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     } else {
       setSuggestedArticles([]);
     }
-  }, [initialChat]);
+    // Reset supervisor eval if chat changes
+    setSupervisorEvaluationScore(SIMULATED_IA_MAE_ANALYSIS.evaluationScore);
+    setSupervisorFeedback('');
+    // Set active tab based on query param or default
+    setActiveTab(initialAction === 'whisper' && initialChat?.id === searchParams.get('chatId') ? 'notes' : 'details');
+
+  }, [initialChat, initialAction, searchParams]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -60,7 +91,7 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
         scrollViewport.scrollTop = scrollViewport.scrollHeight;
       }
     }
-  }, [messages]);
+  }, [messages, activeTab]);
 
   const fetchAiSuggestions = async (currentMessages: Message[]) => {
     if (!chat || currentMessages.length === 0) return;
@@ -144,11 +175,40 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
     toast({ title: "Nota interna enviada", description: "Sua nota interna foi adicionada." });
   };
 
-  const handleTransferChat = (targetType: 'queue' | 'agent', targetId: string) => {
+  const handleTransferChatSubmit = (targetType: 'queue' | 'agent', targetId: string) => {
     const targetTypePt = targetType === 'queue' ? 'fila' : 'agente';
     toast({
-      title: "Transferência de Chat Iniciada",
-      description: `A transferência do chat para ${targetTypePt} ID: ${targetId} foi solicitada.`,
+      title: "Transferência de Chat Iniciada (Simulação)",
+      description: `Chat transferido para ${targetTypePt} ID: ${targetId}.`,
+    });
+    // Lógica de atualização do chat (ex: status, assignedTo) aqui em um app real
+    if(chat) setChat(prev => prev ? {...prev, status: 'TRANSFERRED', assignedTo: targetType === 'agent' ? targetId : null} : null);
+  };
+  
+  const handleAssumeChat = () => {
+    if (!chat) return;
+    toast({
+      title: "Chat Assumido (Simulação)",
+      description: `Supervisor ${MOCK_CURRENT_USER.name} assumiu o chat ID: ${chat.id}.`,
+    });
+    // Lógica de atualização do chat (ex: assignedTo = MOCK_CURRENT_USER.id) aqui
+     if(chat) setChat(prev => prev ? {...prev, assignedTo: MOCK_CURRENT_USER.id, status: 'IN_PROGRESS'} : null);
+  };
+
+  const handleResolveChat = () => {
+     if (!chat) return;
+    toast({
+      title: "Chat Resolvido (Simulação)",
+      description: `Chat ID: ${chat.id} marcado como resolvido.`,
+    });
+     if(chat) setChat(prev => prev ? {...prev, status: 'RESOLVED'} : null);
+  }
+
+  const handleSaveSupervisorEvaluation = () => {
+    if(!chat) return;
+    toast({
+      title: "Avaliação do Supervisor Salva (Simulação)",
+      description: `Avaliação para o chat ${chat.id}: Score ${supervisorEvaluationScore}, Feedback: "${supervisorFeedback || 'N/A'}"`,
     });
   };
   
@@ -189,12 +249,27 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
              {chat.aiAnalysis && (
                 <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} simple />
              )}
-            <Button variant="ghost" size="icon"><Phone className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon"><Video className="h-5 w-5" /></Button>
+            {isSupervisor && (
+              <>
+                <ChatTransferDialog 
+                    queues={MOCK_QUEUES} 
+                    agents={MOCK_USERS.filter(u => u.userType === "AGENT_HUMAN")} 
+                    onTransfer={handleTransferChatSubmit} 
+                />
+                <Button variant="outline" size="sm" onClick={handleAssumeChat} title="Assumir Chat">
+                    <CornerRightUp className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Assumir</span>
+                </Button>
+                 <Button variant="outline" size="sm" onClick={handleResolveChat} title="Resolver Chat" className="text-green-600 hover:text-green-700 border-green-600 hover:border-green-700">
+                    <CheckCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Resolver</span>
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" size="icon" className="hidden sm:inline-flex"><Phone className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" className="hidden sm:inline-flex"><Video className="h-5 w-5" /></Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
@@ -202,15 +277,18 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>Ver Informações de Contato</DropdownMenuItem>
                 <DropdownMenuItem>Bloquear Usuário</DropdownMenuItem>
+                {!isSupervisor && <DropdownMenuSeparator />}
+                 {!isSupervisor && (
+                    <DropdownMenuItem>
+                        <ChatTransferDialog 
+                            queues={MOCK_QUEUES} 
+                            agents={MOCK_USERS.filter(u => u.userType === "AGENT_HUMAN")} 
+                            onTransfer={handleTransferChatSubmit} 
+                        />
+                    </DropdownMenuItem>
+                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                    <ChatTransferDialog 
-                        queues={MOCK_QUEUES} 
-                        agents={MOCK_USERS.filter(u => u.userType === "AGENT_HUMAN")} 
-                        onTransfer={handleTransferChat} 
-                    />
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">Encerrar Chat</DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">Encerrar Chat (Forçado)</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -230,11 +308,15 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
       
       {(MOCK_CURRENT_USER.userType === 'SUPERVISOR' || MOCK_CURRENT_USER.userType === 'AGENT_HUMAN') && (
         <aside className="hidden lg:flex w-80 flex-col border-l bg-muted/20">
-          <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
             <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
-              <TabsTrigger value="details"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
-              <TabsTrigger value="notes"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
-              <TabsTrigger value="kb"><BookOpen className="h-4 w-4"/> BC</TabsTrigger>
+              <TabsTrigger value="details" className="text-xs px-1"><Info className="h-4 w-4"/> Detalhes</TabsTrigger>
+              <TabsTrigger value="notes" className="text-xs px-1"><MessageSquareQuote className="h-4 w-4"/> Notas</TabsTrigger>
+              {isSupervisor ? (
+                <TabsTrigger value="ia_eval" className="text-xs px-1"><Sparkles className="h-4 w-4"/> Análise IA</TabsTrigger>
+              ) : (
+                <TabsTrigger value="kb" className="text-xs px-1"><BookOpen className="h-4 w-4"/> BC</TabsTrigger>
+              )}
             </TabsList>
             
             <TabsContent value="details" className="flex-1 overflow-y-auto p-0">
@@ -247,11 +329,13 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                       <p><strong>Telefone:</strong> {chat.customerPhone}</p>
                       <p><strong>Fila:</strong> {MOCK_QUEUES.find(q => q.id === chat.queueId)?.name || 'N/D'}</p>
                       <p><strong>Prioridade:</strong> <span className={`font-semibold ${chat.priority === 'HIGH' || chat.priority === 'URGENT' ? 'text-destructive' : ''}`}>{chat.priority}</span></p>
+                       <p><strong>Status:</strong> {chat.status}</p>
+                       <p><strong>Agente:</strong> {assignedAgent?.name || "Não atribuído"}</p>
                     </CardContent>
                   </Card>
                    {chat.aiAnalysis && (
                     <Card>
-                      <CardHeader><CardTitle className="text-base">Análise de IA</CardTitle></CardHeader>
+                      <CardHeader><CardTitle className="text-base">Sentimento (IA)</CardTitle></CardHeader>
                       <CardContent>
                         <SentimentDisplay score={chat.aiAnalysis.sentimentScore} confidence={chat.aiAnalysis.confidenceIndex} />
                       </CardContent>
@@ -266,25 +350,81 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
                 {whisperNotes.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma nota interna ainda.</p>}
                 {whisperNotes.map(note => (
                   <div key={note.id} className="text-xs p-2 rounded bg-yellow-100 border border-yellow-200 text-yellow-800">
-                    <p className="font-semibold">{note.userName} ({format(new Date(note.timestamp), 'PPp', { locale: ptBR })})</p>
+                    <p className="font-semibold">{note.userName} ({format(new Date(note.timestamp), 'Pp', { locale: ptBR })})</p> {/* Formato mais curto */}
                     <p>{note.note}</p>
                   </div>
                 ))}
               </ScrollArea>
-              {MOCK_CURRENT_USER.userType === 'SUPERVISOR' && (
+              {(isSupervisor || MOCK_CURRENT_USER.id === chat.assignedTo) && ( // Supervisor ou agente atribuído pode sussurrar
                 <WhisperNoteInput onSendWhisperNote={handleSendWhisperNote} />
               )}
             </TabsContent>
             
-            <TabsContent value="kb" className="flex-1 overflow-y-auto p-0">
-               <ScrollArea className="h-full p-4 space-y-3">
-                {isLoadingAi && !suggestedArticles.length && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin text-primary"/></div>}
-                {!isLoadingAi && suggestedArticles.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum artigo relevante encontrado.</p>}
-                {suggestedArticles.map(article => (
-                  <KnowledgeBaseSuggestionItem key={article.id} article={article} onSelectArticle={handleSelectKbArticle} />
-                ))}
-              </ScrollArea>
-            </TabsContent>
+            {isSupervisor && (
+              <TabsContent value="ia_eval" className="flex-1 overflow-y-auto p-0">
+                <ScrollArea className="h-full">
+                  <div className="p-4 space-y-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center"><Sparkles className="h-4 w-4 mr-2 text-primary"/> Avaliação da IA Mãe</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm space-y-2">
+                        <p><strong>Score IA:</strong> <span className="font-bold text-primary">{SIMULATED_IA_MAE_ANALYSIS.evaluationScore}/100</span></p>
+                        <p className="text-muted-foreground">{SIMULATED_IA_MAE_ANALYSIS.evaluationFeedback}</p>
+                        <h4 className="font-semibold mt-3 text-foreground">Recomendações da IA:</h4>
+                        <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                          {SIMULATED_IA_MAE_ANALYSIS.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center"><SlidersHorizontal className="h-4 w-4 mr-2 text-accent"/> Avaliação Manual do Supervisor</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div>
+                          <Label htmlFor="supervisor-score" className="text-sm">Score Supervisor: <span className="font-bold text-accent">{supervisorEvaluationScore}/100</span></Label>
+                          <Slider
+                            id="supervisor-score"
+                            min={0} max={100} step={1}
+                            defaultValue={[supervisorEvaluationScore]}
+                            onValueChange={(value) => setSupervisorEvaluationScore(value[0])}
+                            className="my-2"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="supervisor-feedback" className="text-sm">Feedback Adicional:</Label>
+                          <Textarea
+                            id="supervisor-feedback"
+                            placeholder="Seu feedback sobre o atendimento..."
+                            value={supervisorFeedback}
+                            onChange={(e) => setSupervisorFeedback(e.target.value)}
+                            className="mt-1 min-h-[80px]"
+                          />
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button size="sm" onClick={handleSaveSupervisorEvaluation} className="w-full bg-accent hover:bg-accent/90">
+                          <Send className="mr-2 h-4 w-4"/> Salvar Avaliação Manual
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            )}
+
+            {!isSupervisor && (
+              <TabsContent value="kb" className="flex-1 overflow-y-auto p-0">
+                <ScrollArea className="h-full p-4 space-y-3">
+                  {isLoadingAi && !suggestedArticles.length && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin text-primary"/></div>}
+                  {!isLoadingAi && suggestedArticles.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum artigo relevante encontrado.</p>}
+                  {suggestedArticles.map(article => (
+                    <KnowledgeBaseSuggestionItem key={article.id} article={article} onSelectArticle={handleSelectKbArticle} />
+                  ))}
+                </ScrollArea>
+              </TabsContent>
+            )}
           </Tabs>
         </aside>
       )}
@@ -293,4 +433,3 @@ const ActiveChatArea = ({ chat: initialChat }: ActiveChatAreaProps) => {
 };
 
 export default ActiveChatArea;
-        
