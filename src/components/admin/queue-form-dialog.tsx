@@ -28,7 +28,7 @@ const queueFormSchema = z.object({
   description: z.string().optional(),
   isActive: z.boolean().default(true),
   kanbanColumnNames: z.string().optional().describe("Nomes das colunas do Kanban, um por linha. As três primeiras serão mapeadas para Aguardando, Em Progresso, Transferido."),
-  defaultAiAgentId: z.string().optional().describe("ID do Agente IA padrão para esta fila."),
+  defaultAiAgentId: z.string().optional(), // Zod .optional() resulta em `string | undefined`
 });
 
 export type QueueFormData = z.infer<typeof queueFormSchema>;
@@ -51,7 +51,7 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
       description: '',
       isActive: true,
       kanbanColumnNames: defaultKanbanColumnTitles.join('\n'),
-      defaultAiAgentId: '',
+      defaultAiAgentId: undefined, // Alterado de '' para undefined
       id: undefined,
     },
   });
@@ -65,7 +65,7 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
         form.reset({
           ...initialData,
           kanbanColumnNames: columnNames,
-          defaultAiAgentId: initialData.defaultAiAgentId || '',
+          defaultAiAgentId: initialData.defaultAiAgentId || undefined, // Garante undefined se for falsy
         });
       } else {
         form.reset({
@@ -73,7 +73,7 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
           description: '',
           isActive: true,
           kanbanColumnNames: defaultKanbanColumnTitles.join('\n'),
-          defaultAiAgentId: '',
+          defaultAiAgentId: undefined, // Garante undefined para novo formulário
           id: undefined,
         });
       }
@@ -81,12 +81,9 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
   }, [initialData, form, isOpen]);
   
   const handleFormSubmit = (data: QueueFormData) => {
-    // Se defaultAiAgentId for uma string vazia, transforma em undefined para não salvar string vazia
-    const dataToSubmit = {
-      ...data,
-      defaultAiAgentId: data.defaultAiAgentId === '' ? undefined : data.defaultAiAgentId,
-    };
-    onSubmit(dataToSubmit);
+    // O valor de data.defaultAiAgentId já será string (ID do agente) ou undefined
+    // devido à lógica no onValueChange do Select.
+    onSubmit(data);
     onOpenChange(false);
   };
 
@@ -137,14 +134,23 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Agente IA Padrão (Opcional)</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={(value) => {
+                      // Se o valor selecionado for "NONE_AI_AGENT", react-hook-form recebe undefined.
+                      // Caso contrário, recebe o ID do agente (string).
+                      field.onChange(value === 'NONE_AI_AGENT' ? undefined : value);
+                    }}
+                    // Se field.value (de react-hook-form) for undefined, o Select é configurado para "NONE_AI_AGENT".
+                    // Caso contrário, usa o field.value (ID do agente).
+                    value={field.value === undefined ? 'NONE_AI_AGENT' : field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um Agente IA" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Nenhum Agente IA Padrão</SelectItem>
+                      <SelectItem value="NONE_AI_AGENT">Nenhum Agente IA Padrão</SelectItem>
                       {aiAgents.map(agent => (
                         <SelectItem key={agent.id} value={agent.id}>
                           {agent.name}
@@ -215,5 +221,3 @@ const QueueFormDialog = ({ isOpen, onOpenChange, onSubmit, initialData, aiAgents
 };
 
 export default QueueFormDialog;
-
-    
