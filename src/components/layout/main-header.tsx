@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Bell, Search, UserCircle, Menu } from 'lucide-react';
+import { Bell, Search, UserCircle, Menu, Users2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -11,10 +11,11 @@ import AppLogo from '@/components/icons/app-logo';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_ITEMS } from '@/lib/constants';
+import { MOCK_CURRENT_USER, setSimulatedUserType, MOCK_USERS } from '@/lib/mock-data';
 
 
 const MainHeader = () => {
-  const user = { name: 'Usuário Demo', avatarUrl: 'https://placehold.co/40x40' };
+  const user = MOCK_CURRENT_USER; // Use o MOCK_CURRENT_USER dinâmico
   const pathname = usePathname();
   
   const getCurrentPageLabel = () => {
@@ -28,15 +29,27 @@ const MainHeader = () => {
       }
       return null;
     }
-    // A simple fallback for top level /admin routes not directly in NAV_ITEMS subItems
     if (pathname.startsWith('/admin/') && !findItem(NAV_ITEMS)) {
         const segments = pathname.split('/');
         const lastSegment = segments[segments.length -1];
-        // Capitalize first letter and replace hyphens
         return lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1).replace(/-/g, ' ');
+    }
+    if (pathname.startsWith('/supervisor/chat/')) {
+        return "Supervisão de Chat";
     }
     return findItem(NAV_ITEMS) || APP_NAME;
   };
+
+  const handleToggleUser = () => {
+    if (MOCK_CURRENT_USER.userType === 'SUPERVISOR') {
+      setSimulatedUserType('AGENT_HUMAN');
+    } else {
+      setSimulatedUserType('SUPERVISOR');
+    }
+  };
+
+  const agentUser = MOCK_USERS.find(u => u.id === 'user_1'); // Alice
+  const supervisorUser = MOCK_USERS.find(u => u.id === 'user_2'); // Roberto
 
 
   return (
@@ -66,18 +79,28 @@ const MainHeader = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <div className="relative hidden sm:block">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input type="search" placeholder="Pesquisar..." className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px] rounded-full" />
+          <Input type="search" placeholder="Pesquisar..." className="pl-8 sm:w-[200px] md:w-[250px] lg:w-[300px] rounded-full text-sm" />
         </div>
+        
+        {/* Botão Provisório para Alternar Usuário */}
+        <Button onClick={handleToggleUser} variant="outline" size="sm" className="text-xs sm:text-sm" title={`Logado como: ${MOCK_CURRENT_USER.name} (${MOCK_CURRENT_USER.userType})`}>
+          <Users2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+          <span className="hidden sm:inline">Alternar para: </span>
+           {MOCK_CURRENT_USER.userType === 'SUPERVISOR' ? 
+            `Agente (${agentUser?.name.split(' ')[0]})` : 
+            `Superv. (${supervisorUser?.name.split(' ')[0]})`}
+        </Button>
+        
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Notificações</span>
         </Button>
         <Button variant="ghost" size="icon" className="rounded-full">
           {user.avatarUrl ? (
-            <img src={user.avatarUrl} alt={user.name} data-ai-hint="user avatar" className="h-8 w-8 rounded-full" />
+            <img src={user.avatarUrl} alt={user.name} data-ai-hint="user avatar" className="h-8 w-8 rounded-full border" />
           ) : (
             <UserCircle className="h-6 w-6" />
           )}
@@ -89,3 +112,4 @@ const MainHeader = () => {
 };
 
 export default MainHeader;
+

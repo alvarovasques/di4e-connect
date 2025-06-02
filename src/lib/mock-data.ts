@@ -31,7 +31,37 @@ export const MOCK_USERS: User[] = [
   },
 ];
 
-export const MOCK_CURRENT_USER: User = MOCK_USERS[1]; // Roberto (Supervisor)
+// Define users for easy access
+const aliceUser = MOCK_USERS.find(u => u.id === 'user_1')!; // Agent
+const robertoUser = MOCK_USERS.find(u => u.id === 'user_2')!; // Supervisor
+
+let currentUserForExport: User;
+const defaultUserForMock = robertoUser; // Supervisor as default
+
+if (typeof window !== 'undefined') {
+  const simulatedUserType = localStorage.getItem('simulatedUserType');
+  if (simulatedUserType === 'AGENT_HUMAN') {
+    currentUserForExport = aliceUser;
+  } else if (simulatedUserType === 'SUPERVISOR') {
+    currentUserForExport = robertoUser;
+  } else {
+    // If no preference in localStorage, default to Supervisor and set it for next time
+    currentUserForExport = defaultUserForMock;
+    localStorage.setItem('simulatedUserType', defaultUserForMock.userType);
+  }
+} else {
+  // Server-side or no window object, default to Supervisor
+  currentUserForExport = defaultUserForMock;
+}
+
+export const MOCK_CURRENT_USER: User = currentUserForExport;
+
+export const setSimulatedUserType = (userType: 'AGENT_HUMAN' | 'SUPERVISOR') => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('simulatedUserType', userType);
+    window.location.reload();
+  }
+};
 
 
 const generateMessages = (chatId: string, count: number): Message[] => {
@@ -375,4 +405,5 @@ export const MOCK_AI_MODELS: AiModel[] = [
     
 
     
+
 
