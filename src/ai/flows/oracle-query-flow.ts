@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Um fluxo Genkit para o Oráculo IA, que responde a perguntas com base na Base de Conhecimento.
+ * @fileOverview Um fluxo Genkit para o Oráculo IA, que responde a perguntas com base na Base de Conhecimento e sugere prompts.
  *
  * - queryOracle - Função que interage com o Oráculo.
  * - OracleQueryInput - Tipo de entrada para queryOracle.
@@ -21,7 +21,7 @@ export type OracleQueryInput = z.infer<typeof OracleQueryInputSchema>;
 
 const OracleQueryOutputSchema = z.object({
   oracleResponse: z.string().describe('A resposta do Oráculo baseada na Base de Conhecimento.'),
-  // Futuramente: suggestedPrompts: z.array(z.string()).optional().describe('Sugestões de prompts geradas pelo Oráculo.'),
+  suggestedPrompts: z.array(z.string()).optional().describe('Sugestões de prompts de acompanhamento geradas pelo Oráculo.'),
 });
 export type OracleQueryOutput = z.infer<typeof OracleQueryOutputSchema>;
 
@@ -59,11 +59,12 @@ Base de Conhecimento Disponível:
 Pergunta do Usuário:
 "{{{userInput}}}"
 
-Responda à pergunta do usuário utilizando exclusivamente as informações da Base de Conhecimento fornecida acima.
-Se a resposta não estiver na Base de Conhecimento, informe que a informação não foi encontrada nos documentos disponíveis.
-Seja claro, conciso e direto ao ponto.
-Se a pergunta for vaga, tente interpretá-la no contexto da Base de Conhecimento.
-Você também pode sugerir como o usuário pode formular melhor suas perguntas ou quais tópicos da base de conhecimento podem ser relevantes.
+1. Responda à pergunta do usuário utilizando exclusivamente as informações da Base de Conhecimento fornecida acima.
+   Se a resposta não estiver na Base de Conhecimento, informe que a informação não foi encontrada nos documentos disponíveis.
+   Seja claro, conciso e direto ao ponto. Se a pergunta for vaga, tente interpretá-la no contexto da Base de Conhecimento.
+
+2. Após responder, gere de 2 a 3 sugestões de prompts de acompanhamento que o usuário poderia fazer, relacionados à pergunta original ou a tópicos adjacentes na Base de Conhecimento.
+   Formate essas sugestões como uma lista no campo 'suggestedPrompts'. Se não conseguir pensar em boas sugestões, deixe o campo 'suggestedPrompts' vazio.
 `,
 });
 
@@ -76,10 +77,9 @@ const oracleQueryFlow = ai.defineFlow(
   async (input: OracleQueryInput) => {
     const knowledgeBaseContext = getKnowledgeBaseContext();
     
-    // Adicionando o contexto da KB ao input do prompt dinamicamente
     const {output} = await prompt({
       userInput: input.userInput,
-      knowledgeBaseContext, // Passando o contexto para o template do prompt
+      knowledgeBaseContext, 
     });
 
     if (!output) {
@@ -88,3 +88,4 @@ const oracleQueryFlow = ai.defineFlow(
     return output;
   }
 );
+

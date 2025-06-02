@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { queryOracle, OracleQueryInput, OracleQueryOutput } from '@/ai/flows/oracle-query-flow';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { MOCK_KB_ITEMS } from '@/lib/mock-data'; // Para mostrar exemplos da KB
+import { MOCK_KB_ITEMS } from '@/lib/mock-data';
 import type { KBItem } from '@/types';
 
 interface OracleMessage {
@@ -20,7 +20,7 @@ interface OracleMessage {
   timestamp: Date;
 }
 
-const STATIC_PROMPT_SUGGESTIONS = [
+const FALLBACK_PROMPT_SUGGESTIONS = [
   "Qual é a política de reembolso da empresa?",
   "Como funciona o processo de escalonamento de chamados?",
   "Resuma o código de conduta.",
@@ -32,10 +32,10 @@ export default function OraclePage() {
   const [userInput, setUserInput] = useState('');
   const [messages, setMessages] = useState<OracleMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [dynamicPromptSuggestions, setDynamicPromptSuggestions] = useState<string[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Adiciona uma mensagem inicial do Oráculo
     setMessages([
       {
         id: 'oracle-init',
@@ -69,6 +69,7 @@ export default function OraclePage() {
     setMessages(prev => [...prev, userMessage]);
     setUserInput('');
     setIsLoading(true);
+    setDynamicPromptSuggestions([]); // Limpa sugestões antigas
 
     try {
       const inputForFlow: OracleQueryInput = { userInput: currentInput };
@@ -81,6 +82,11 @@ export default function OraclePage() {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, oracleMessage]);
+
+      if (result.suggestedPrompts && result.suggestedPrompts.length > 0) {
+        setDynamicPromptSuggestions(result.suggestedPrompts);
+      }
+
     } catch (error) {
       console.error('Erro ao consultar o Oráculo:', error);
       const errorMessage: OracleMessage = {
@@ -96,15 +102,15 @@ export default function OraclePage() {
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    setUserInput(suggestion); // Preenche o input
-    handleSubmit(undefined, suggestion); // Envia a sugestão
+    setUserInput(suggestion); 
+    handleSubmit(undefined, suggestion);
   };
   
   const sampleKbItems = MOCK_KB_ITEMS.filter(item => item.type === 'file' && item.content).slice(0,3);
+  const currentPromptSuggestions = dynamicPromptSuggestions.length > 0 ? dynamicPromptSuggestions : FALLBACK_PROMPT_SUGGESTIONS;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)]">
-      {/* Painel Principal do Chat */}
       <div className="flex-1 flex flex-col bg-background p-4">
         <header className="mb-4">
           <h1 className="text-3xl font-bold font-headline text-foreground flex items-center">
@@ -193,7 +199,6 @@ export default function OraclePage() {
         </form>
       </div>
 
-      {/* Painel Lateral de Ajuda e Sugestões */}
       <aside className="w-80 hidden lg:flex flex-col border-l bg-muted/30 p-4 space-y-6">
         <Card>
           <CardHeader>
@@ -204,7 +209,7 @@ export default function OraclePage() {
             <CardDescription>Clique para enviar ou use como inspiração.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {STATIC_PROMPT_SUGGESTIONS.map((prompt, index) => (
+            {currentPromptSuggestions.map((prompt, index) => (
               <Button
                 key={index}
                 variant="outline"
@@ -246,3 +251,4 @@ export default function OraclePage() {
     </div>
   );
 }
+
