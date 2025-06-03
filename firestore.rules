@@ -1,0 +1,25 @@
+rules_version = '2'; // Apenas uma vez, no topo
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Regra específica para a coleção 'queues' (permite tudo para desenvolvimento)
+    match /queues/{queueId} {
+      allow read, write: if true; // CUIDADO: Apenas para desenvolvimento
+    }
+
+    // Regra padrão para TODOS OS OUTROS documentos (bloqueia tudo por padrão)
+    // Esta regra / {document=**} deve vir DEPOIS de regras mais específicas como /queues/{queueId}
+    // para que as regras específicas tenham prioridade.
+    // No entanto, para simplificar o desenvolvimento inicial e garantir que 'queues' funcione,
+    // podemos comentar ou remover temporariamente a regra genérica restritiva se ela estiver causando conflitos.
+    // Por enquanto, vamos focar em fazer 'queues' funcionar. Se outras coleções precisarem de acesso,
+    // adicionaremos regras específicas para elas.
+
+    // Se você tiver uma regra genérica como a abaixo, certifique-se de que não está bloqueando 'queues'.
+    // match /{document=**} {
+    //   allow read, write: if false; // Esta regra bloquearia tudo se não sobrescrita acima.
+    // }
+    // Para o nosso caso, vamos garantir que as 'queues' funcionem e não adicionar uma regra genérica restritiva por enquanto.
+  }
+}
